@@ -1,0 +1,18 @@
+# Netlify build config for ZYVA
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Scheduled function: nightly cleanup of events ended >7 days ago.
+# The schedule is also declared inside the function file itself; this
+# section just makes sure Netlify recognizes the directory.
+[functions]
+  directory = "netlify/functions"

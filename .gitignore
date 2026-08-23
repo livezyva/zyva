@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Local database (Netlify uses Supabase; DB file is dev-only)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Netlify
+.netlify/
