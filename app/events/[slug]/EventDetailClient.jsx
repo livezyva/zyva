@@ -4,14 +4,19 @@ import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { formatEventTime, relativeCountdown, CATEGORY_META } from '../../../lib/format';
 import { isSaved, toggleSaved } from '../../../lib/saved';
-import { instagramUrl, telHref, gmapsDirectionsUrl } from '../../../lib/maps';
+import { instagramUrl, httpUrl, telHref } from '../../../lib/maps';
 import EventCard from '../../../components/EventCard';
+import { useLanguage } from '../../../components/LanguageProvider';
 
-const MiniMap = dynamic(() => import('../../../components/MiniMap'), { ssr: false, loading: () => (
-  <div className="h-64 rounded-2xl border border-zborder bg-zcard grid place-items-center text-ztext3">Loading map…</div>
-) });
+function MapLoading() {
+  const { t } = useLanguage();
+  return <div className="h-64 rounded-2xl border border-zborder bg-zcard grid place-items-center text-ztext3">{t('discover.loadingMap')}</div>;
+}
+
+const MiniMap = dynamic(() => import('../../../components/MiniMap'), { ssr: false, loading: () => <MapLoading /> });
 
 export default function EventDetailClient({ event, venue, related }) {
+  const { language, locale, t, categoryName, cityName, priceLabel, eventDescription } = useLanguage();
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -21,14 +26,14 @@ export default function EventDetailClient({ event, venue, related }) {
     return () => window.removeEventListener('zyva:saved-changed', r);
   }, [event.id]);
 
-  const t = formatEventTime(event.start_datetime, event.end_datetime);
+  const eventTime = formatEventTime(event.start_datetime, event.end_datetime, language);
   const cat = CATEGORY_META[event.category] || { emoji: '✨', short: event.category };
-  const startFull = new Date(event.start_datetime).toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-  const endFull = new Date(event.end_datetime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const startFull = new Date(event.start_datetime).toLocaleString(locale, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  const endFull = new Date(event.end_datetime).toLocaleString(locale, { hour: '2-digit', minute: '2-digit' });
 
   const share = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    const data = { title: event.title, text: `${event.title} — ${t.dayLabel} at ${event.venue_name}`, url };
+    const data = { title: event.title, text: `${event.title} — ${eventTime.dayLabel} ${t('event.at')} ${event.venue_name}`, url };
     try {
       if (navigator.share) await navigator.share(data);
       else { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); }
@@ -47,27 +52,27 @@ export default function EventDetailClient({ event, venue, related }) {
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-12 sm:pb-16">
           <Link href="/" className="inline-flex items-center gap-2 text-ztext2 hover:text-zneon text-sm">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
-            Back to discovery
+            {t('event.backDiscovery')}
           </Link>
           <div className="mt-6 flex flex-wrap items-center gap-2">
             {event.is_featured ? (
-              <span className="bg-zneon text-black text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full">★ Recommended</span>
+              <span className="bg-zneon text-black text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full">★ {t('event.recommended')}</span>
             ) : null}
             <span className="bg-black/60 backdrop-blur border border-zborder text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-              {cat.emoji} {event.category}
+              {cat.emoji} {categoryName(event.category)}
             </span>
             <span className="bg-black/60 backdrop-blur border border-zborder text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-              📍 {event.city}
+              📍 {cityName(event.city)}
             </span>
             <span className="bg-zneon/90 text-black text-xs font-bold px-2.5 py-1 rounded-full">
-              {relativeCountdown(event.start_datetime)}
+              {relativeCountdown(event.start_datetime, language)}
             </span>
           </div>
           <h1 className="font-headline text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mt-4 max-w-4xl">
             {event.title}
           </h1>
           <p className="text-ztext2 mt-3 text-lg">
-            at <Link href="#venue" className="text-white hover:text-zneon font-semibold">{event.venue_name}</Link>
+            {t('event.at')} <Link href="#venue" className="text-white hover:text-zneon font-semibold">{event.venue_name}</Link>
           </p>
         </div>
       </section>
@@ -76,13 +81,13 @@ export default function EventDetailClient({ event, venue, related }) {
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6">
         <div className="bg-zcard border border-zborder rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 -mt-8 shadow-xl shadow-black/50">
           <div className="flex-1">
-            <div className="text-ztext3 text-xs uppercase tracking-wider">When</div>
+            <div className="text-ztext3 text-xs uppercase tracking-wider">{t('event.when')}</div>
             <div className="font-headline font-bold text-lg">{startFull} <span className="text-ztext3 font-normal">→ {endFull}</span></div>
           </div>
           <div className="hidden sm:block h-10 w-px bg-zborder" />
           <div>
-            <div className="text-ztext3 text-xs uppercase tracking-wider">Entry</div>
-            <div className="font-headline font-bold text-lg text-zneon">{event.price_label}</div>
+            <div className="text-ztext3 text-xs uppercase tracking-wider">{t('event.entry')}</div>
+            <div className="font-headline font-bold text-lg text-zneon">{priceLabel(event.price_label)}</div>
           </div>
           <div className="flex flex-wrap gap-2 sm:ml-auto">
             <button
@@ -94,18 +99,18 @@ export default function EventDetailClient({ event, venue, related }) {
               <svg width="16" height="16" viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                 <path d="M6 3h12a1 1 0 011 1v17l-7-4-7 4V4a1 1 0 011-1z" />
               </svg>
-              {saved ? "You're going" : "I'm going"}
+              {saved ? t('event.going') : t('event.imGoing')}
             </button>
             <button
               onClick={share}
               className="inline-flex items-center gap-2 px-4 py-3 rounded-full font-semibold border border-zborder text-white hover:border-zneon hover:text-zneon transition"
-              aria-label="Share event"
+              aria-label={t('event.shareAria')}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                 <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>
               </svg>
-              {copied ? 'Link copied!' : 'Share'}
+              {copied ? t('event.linkCopied') : t('event.share')}
             </button>
             <BuyCta event={event} venue={venue} />
           </div>
@@ -115,19 +120,19 @@ export default function EventDetailClient({ event, venue, related }) {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <section>
-            <h2 className="font-headline text-2xl font-bold mb-3">About this event</h2>
-            <p className="text-ztext2 leading-relaxed whitespace-pre-line">{event.description}</p>
+            <h2 className="font-headline text-2xl font-bold mb-3">{t('event.about')}</h2>
+            <p className="text-ztext2 leading-relaxed whitespace-pre-line">{eventDescription(event)}</p>
           </section>
 
           <section id="venue" className="space-y-4">
-            <h2 className="font-headline text-2xl font-bold">Venue</h2>
+            <h2 className="font-headline text-2xl font-bold">{t('event.venue')}</h2>
             <div className="bg-zcard border border-zborder rounded-2xl p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="font-headline font-bold text-xl flex items-center gap-2">
                     {event.venue_name}
                     {venue?.is_verified ? (
-                      <span title="Verified" className="text-zneon">
+                      <span title={t('event.verified')} className="text-zneon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 2.6 3.5-.3.7 3.5 3 2-1.6 3.2 1.6 3.2-3 2-.7 3.5-3.5-.3L12 22l-2.4-2.6-3.5.3-.7-3.5-3-2 1.6-3.2L2.4 7.8l3-2 .7-3.5 3.5.3L12 2z"/></svg>
                       </span>
                     ) : null}
@@ -159,7 +164,7 @@ export default function EventDetailClient({ event, venue, related }) {
 
           {related.length > 0 && (
             <section>
-              <h2 className="font-headline text-2xl font-bold mb-4">More at {event.venue_name}</h2>
+              <h2 className="font-headline text-2xl font-bold mb-4">{t('event.moreAt', { venue: event.venue_name })}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {related.map(r => <EventCard key={r.id} event={r} />)}
               </div>
@@ -170,29 +175,26 @@ export default function EventDetailClient({ event, venue, related }) {
         {/* Sidebar */}
         <aside className="space-y-4">
           <div className="bg-zcard border border-zborder rounded-2xl p-5">
-            <div className="text-ztext3 text-xs uppercase tracking-wider">Category</div>
-            <div className="font-headline font-bold text-lg mt-1">{cat.emoji} {event.category}</div>
+            <div className="text-ztext3 text-xs uppercase tracking-wider">{t('event.category')}</div>
+            <div className="font-headline font-bold text-lg mt-1">{cat.emoji} {categoryName(event.category)}</div>
           </div>
           <div className="bg-zcard border border-zborder rounded-2xl p-5 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-ztext2">Views</span>
+              <span className="text-ztext2">{t('event.views')}</span>
               <span className="font-semibold">{event.views_count.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-ztext2">Shares</span>
+              <span className="text-ztext2">{t('event.shares')}</span>
               <span className="font-semibold">{event.shares_count.toLocaleString()}</span>
             </div>
-            <div className="h-px bg-zborder my-2" />
-            <div className="text-ztext3 text-xs">
-              This listing runs for {event.listing_duration_days} day{event.listing_duration_days === 1 ? '' : 's'}.
-            </div>
+
           </div>
           <div className="bg-gradient-to-br from-zneon/20 to-transparent border border-zneon/40 rounded-2xl p-5">
-            <div className="font-headline font-bold">Are you an organizer?</div>
-            <p className="text-ztext2 text-sm mt-1 mb-3">List your event on ZYVA from €5/day. Reach thousands across Cyprus.</p>
-            <a href="#" className="inline-flex items-center gap-2 bg-zneon text-black font-bold px-4 py-2 rounded-full text-sm hover:shadow-neonSoft">
-              List an event →
-            </a>
+            <div className="font-headline font-bold">{t('event.organizerQuestion')}</div>
+            <p className="text-ztext2 text-sm mt-1 mb-3">{t('event.organizerPitch')}</p>
+            <Link href="/apply" className="inline-flex items-center gap-2 bg-zneon text-black font-bold px-4 py-2 rounded-full text-sm hover:shadow-neonSoft">
+              {t('event.listEvent')}
+            </Link>
           </div>
         </aside>
       </main>
@@ -202,16 +204,21 @@ export default function EventDetailClient({ event, venue, related }) {
 
 /* ─────────────────────── Smart primary CTA ─────────────────────── */
 function BuyCta({ event, venue }) {
-  // Priority: explicit ticket URL → phone → website → nothing
+  const { t } = useLanguage();
+  // Priority: explicit ticket URL → phone → website → Instagram → nothing
   let href, label, external = true;
-  if (event.ticket_url && event.ticket_url !== 'https://example.com/tickets') {
-    href = event.ticket_url; label = 'Buy Tickets';
-  } else if (venue?.phone) {
-    href = telHref(venue.phone); label = 'Call to Reserve'; external = false;
-  } else if (venue?.website_url) {
-    href = venue.website_url; label = 'Visit Website';
-  } else if (venue?.instagram_handle) {
-    href = instagramUrl(venue.instagram_handle); label = 'Message on Instagram';
+  const ticket = httpUrl(event.ticket_url);
+  const phone = telHref(venue?.phone);
+  const website = httpUrl(venue?.website_url);
+  const instagram = instagramUrl(venue?.instagram_handle);
+  if (ticket && ticket !== 'https://example.com/tickets') {
+    href = ticket; label = t('event.buyTickets');
+  } else if (phone) {
+    href = phone; label = t('event.callReserve'); external = false;
+  } else if (website) {
+    href = website; label = t('event.visitWebsite');
+  } else if (instagram) {
+    href = instagram; label = t('event.messageInstagram');
   } else {
     return null;
   }
@@ -230,18 +237,19 @@ function BuyCta({ event, venue }) {
 
 /* ─────────────────────── Venue social & contact links ─────────────────────── */
 function VenueLinks({ venue }) {
+  const { t } = useLanguage();
   if (!venue) return null;
   const ig = instagramUrl(venue.instagram_handle);
-  const fb = venue.facebook_url;
-  const web = venue.website_url;
+  const fb = httpUrl(venue.facebook_url);
+  const web = httpUrl(venue.website_url);
   const tel = telHref(venue.phone);
   if (!ig && !fb && !web && !tel) return null;
 
   const items = [
     ig && { href: ig, label: venue.instagram_handle, kind: 'ig', title: 'Instagram' },
     fb && { href: fb, label: 'Facebook', kind: 'fb', title: 'Facebook' },
-    web && { href: web, label: prettyDomain(web), kind: 'web', title: 'Website' },
-    tel && { href: tel, label: venue.phone, kind: 'tel', title: 'Call' },
+    web && { href: web, label: prettyDomain(web), kind: 'web', title: t('common.website') },
+    tel && { href: tel, label: venue.phone, kind: 'tel', title: t('common.call') },
   ].filter(Boolean);
 
   return (

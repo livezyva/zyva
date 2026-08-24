@@ -5,16 +5,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { gmapsDirectionsUrl } from '../lib/maps';
 import { formatEventTime, CATEGORY_META } from '../lib/format';
+import { useLanguage } from './LanguageProvider';
+
+function MapLoading() {
+  const { t } = useLanguage();
+  return <div className="h-full w-full grid place-items-center bg-[#0b0b0f] text-ztext3">{t('discover.loadingMap')}</div>;
+}
 
 // Leaflet needs `window`, so load only on the client
 const EventMap = dynamic(() => import('./EventMap'), {
   ssr: false,
-  loading: () => (
-    <div className="h-full w-full grid place-items-center bg-[#0b0b0f] text-ztext3">Loading map…</div>
-  ),
+  loading: () => <MapLoading />,
 });
 
 export default function MapView({ events }) {
+  const { language, t, cityName, priceLabel } = useLanguage();
   const router = useRouter();
   const points = useMemo(() => events.filter(e => e.latitude && e.longitude), [events]);
   const [selected, setSelected] = useState(points[0] || null);
@@ -39,7 +44,7 @@ export default function MapView({ events }) {
   if (points.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-zborder py-20 text-center text-ztext2">
-        No locations to show. Try different filters.
+        {t('map.noLocations')}
       </div>
     );
   }
@@ -63,7 +68,7 @@ export default function MapView({ events }) {
             href={`/events/${selected.slug}`}
             prefetch
             className="group absolute left-3 right-3 bottom-3 sm:right-auto sm:max-w-sm z-30 bg-black/90 backdrop-blur-lg border border-zneon rounded-2xl shadow-neon p-3 flex gap-3 hover:shadow-[0_0_28px_rgba(29,185,84,0.55)] hover:border-zneon hover:-translate-y-0.5 transition"
-            aria-label={`Open ${selected.title}`}
+            aria-label={t('event.open', { title: selected.title })}
           >
             <img
               src={selected.cover_image_url}
@@ -72,17 +77,17 @@ export default function MapView({ events }) {
             />
             <div className="flex-1 min-w-0">
               <div className="text-[10px] text-zneon font-bold uppercase tracking-widest">
-                {CATEGORY_META[selected.category]?.emoji} {formatEventTime(selected.start_datetime, selected.end_datetime).dayLabel} · {formatEventTime(selected.start_datetime, selected.end_datetime).time}
+                {CATEGORY_META[selected.category]?.emoji} {formatEventTime(selected.start_datetime, selected.end_datetime, language).dayLabel} · {formatEventTime(selected.start_datetime, selected.end_datetime, language).time}
               </div>
               <div className="font-headline font-bold text-sm leading-tight mt-0.5 line-clamp-2 group-hover:text-zneon transition">
                 {selected.title}
               </div>
               <div className="text-ztext2 text-xs mt-0.5 truncate">
-                {selected.venue_name} · {selected.city}
+                {selected.venue_name} · {cityName(selected.city)}
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-1 bg-zneon text-black font-bold text-xs px-3 py-1.5 rounded-full">
-                  View details
+                  {t('map.viewDetails')}
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </span>
                 <a
@@ -91,9 +96,9 @@ export default function MapView({ events }) {
                   onClick={(e) => e.stopPropagation()}
                   className="border border-zborder text-white font-semibold text-xs px-3 py-1.5 rounded-full hover:border-zneon hover:text-zneon transition"
                 >
-                  Directions
+                  {t('map.directions')}
                 </a>
-                <span className="text-zneon font-semibold text-xs ml-auto">{selected.price_label}</span>
+                <span className="text-zneon font-semibold text-xs ml-auto">{priceLabel(selected.price_label)}</span>
               </div>
             </div>
           </Link>
@@ -105,16 +110,16 @@ export default function MapView({ events }) {
         <div className="px-4 py-3 border-b border-zborder">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-headline font-bold">Venues on map</div>
-              <div className="text-ztext3 text-xs">{points.length} location{points.length === 1 ? '' : 's'}</div>
+              <div className="font-headline font-bold">{t('map.venues')}</div>
+              <div className="text-ztext3 text-xs">{t('filter.resultCount', { count: points.length, label: points.length === 1 ? t('common.location') : t('common.locations') })}</div>
             </div>
-            <span className="text-ztext3 text-[10px] uppercase tracking-wider hidden sm:inline">Tap → preview<br/>Tap again → open</span>
+            <span className="whitespace-pre-line text-ztext3 text-[10px] uppercase tracking-wider hidden sm:inline">{t('map.tapHelp')}</span>
           </div>
         </div>
         <div ref={listRef} className="flex-1 overflow-y-auto divide-y divide-zborder">
           {points.map(e => {
             const isSel = selected?.id === e.id;
-            const t = formatEventTime(e.start_datetime, e.end_datetime);
+            const eventTime = formatEventTime(e.start_datetime, e.end_datetime, language);
             return (
               <div
                 key={e.id}
@@ -139,9 +144,9 @@ export default function MapView({ events }) {
                     <div className={`font-semibold text-sm leading-tight line-clamp-2 ${isSel ? 'text-zneon' : 'text-white'}`}>
                       {e.title}
                     </div>
-                    <div className="text-ztext2 text-xs mt-0.5 truncate">{e.venue_name} · {e.city}</div>
+                    <div className="text-ztext2 text-xs mt-0.5 truncate">{e.venue_name} · {cityName(e.city)}</div>
                     <div className="text-ztext3 text-[11px] mt-0.5">
-                      {t.dayLabel} · {t.time} · <span className="text-zneon font-semibold">{e.price_label}</span>
+                      {eventTime.dayLabel} · {eventTime.time} · <span className="text-zneon font-semibold">{priceLabel(e.price_label)}</span>
                     </div>
                   </div>
                 </button>
@@ -150,7 +155,7 @@ export default function MapView({ events }) {
                   href={`/events/${e.slug}`}
                   prefetch
                   onMouseEnter={() => router.prefetch(`/events/${e.slug}`)}
-                  aria-label={`Open ${e.title}`}
+                  aria-label={t('event.open', { title: e.title })}
                   className="shrink-0 pr-3 pl-2 flex items-center text-ztext3 hover:text-zneon transition"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 6l6 6-6 6"/></svg>

@@ -1,8 +1,10 @@
 import { getDb } from '../../../../lib/db';
 import { verifyRequest, requireAdmin } from '../../../../lib/supabaseServer';
 import { geocodeAddress } from '../../../../lib/geocode';
+import { normalizeVenuePublicContacts } from '../../../../lib/venueContact';
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
+import { translateDescriptionToGreek } from '../../../../lib/translate';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +13,9 @@ async function safe(handler) {
   try { return await handler(); }
   catch (err) {
     console.error('[api/admin/events] ERROR:', err);
+    const status = err?.code === 'TRANSLATION_NOT_CONFIGURED' ? 409
+      : err?.code?.startsWith?.('TRANSLATION_') ? 502
+        : 500;
     return NextResponse.json(
       {
         error: err?.message || String(err),
@@ -19,7 +24,7 @@ async function safe(handler) {
         hint: err?.hint || null,
         where: err?.where || null,
       },
-      { status: 500 }
+      { status }
     );
   }
 }
@@ -48,6 +53,12 @@ export async function POST(req) {
     const body = await req.json();
     const err = validateEvent(body);
     if (err) return NextResponse.json({ error: err }, { status: 400 });
+    let publicContacts;
+    try {
+      publicContacts = normalizeVenuePublicContacts(body);
+    } catch (validationError) {
+      return NextResponse.json({ error: validationError.message }, { status: 400 });
+    }
 
     const id = randomUUID();
     const slug = slugify(body.title) + '-' + Math.random().toString(36).slice(2, 6);
@@ -70,28 +81,39 @@ export async function POST(req) {
       const vslug = slugify(body.venue_name) + '-' + Math.random().toString(36).slice(2, 4);
       const verifiedVal = db.kind === 'pg' ? true : 1;
       await db.run(
-        `INSERT INTO venues (id, name, slug, city, address, latitude, longitude, is_verified)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [venueId, body.venue_name, vslug, body.city, body.address, lat, lng, verifiedVal]
+        `INSERT INTO venues
+          (id, name, slug, city, address, latitude, longitude,
+           instagram_handle, facebook_url, website_url, phone, is_verified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          venueId, body.venue_name, vslug, body.city, body.address, lat, lng,
+          publicContacts.instagram_handle, publicContacts.facebook_url,
+          publicContacts.website_url, publicContacts.phone, verifiedVal,
+        ]
       );
     }
 
     // Boolean type differs: Postgres wants true/false, SQLite wants 1/0.
     const featuredVal = db.kind === 'pg' ? !!body.is_featured : (body.is_featured ? 1 : 0);
+    const status = body.status || 'APPROVED_ACTIVE';
+    let descriptionEl = String(body.description_el || '').trim() || null;
+    if (status === 'APPROVED_ACTIVE' && !descriptionEl) {
+      descriptionEl = await translateDescriptionToGreek(body.description);
+    }
 
     await db.run(
       `INSERT INTO events
-        (id, venue_id, title, slug, description, category, city, venue_name, address,
+        (id, venue_id, title, slug, description, description_el, category, city, venue_name, address,
          latitude, longitude, start_datetime, end_datetime, cover_image_url, ticket_url,
          price_label, status, is_featured, listing_duration_days, daily_rate_eur,
          total_cost_eur, views_count, shares_count, expires_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        id, venueId, body.title, slug, body.description, body.category, body.city,
+        id, venueId, body.title, slug, body.description, descriptionEl, body.category, body.city,
         body.venue_name, body.address, lat, lng,
         body.start_datetime, body.end_datetime, body.cover_image_url,
         body.ticket_url, body.price_label || 'Free Entry',
-        body.status || 'APPROVED_ACTIVE', featuredVal,
+        status, featuredVal,
         durationDays, 0, 0, 0, 0, body.end_datetime,
       ]
     );

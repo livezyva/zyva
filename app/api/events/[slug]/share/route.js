@@ -4,7 +4,11 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function POST(_req, { params }) {
+  const { slug } = await params;
   const db = getDb();
-  await db.run('UPDATE events SET shares_count = shares_count + 1 WHERE slug = ?', [params.slug]);
+  await db.run(
+    "UPDATE events SET shares_count = shares_count + 1 WHERE slug = ? AND status = 'APPROVED_ACTIVE'",
+    [slug]
+  );
   return NextResponse.json({ ok: true });
 }

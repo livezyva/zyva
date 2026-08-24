@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 /** Approve or reject an organizer application. */
 export async function PATCH(req, { params }) {
   try {
+    const { id } = await params;
     const auth = await verifyRequest(req);
     const gate = requireAdmin(auth);
     if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
@@ -21,7 +22,7 @@ export async function PATCH(req, { params }) {
     }
 
     const db = getDb();
-    const app = await db.get(`SELECT * FROM organizer_applications WHERE id = ?`, [params.id]);
+    const app = await db.get(`SELECT * FROM organizer_applications WHERE id = ?`, [id]);
     if (!app) return NextResponse.json({ error: 'Application not found' }, { status: 404 });
 
     if (action === 'APPROVE') {
@@ -29,7 +30,7 @@ export async function PATCH(req, { params }) {
         `UPDATE organizer_applications
          SET status='APPROVED', rejection_reason=NULL, reviewed_at=NOW(), reviewed_by=?
          WHERE id = ?`,
-        [auth.user.id, params.id]
+        [auth.user.id, id]
       );
       // Ensure a profile row exists (older users may not have one), then promote to ORGANIZER.
       // Postgres UPSERT — creates or updates in one statement.
@@ -63,11 +64,11 @@ export async function PATCH(req, { params }) {
         `UPDATE organizer_applications
          SET status='REJECTED', rejection_reason=?, reviewed_at=NOW(), reviewed_by=?
          WHERE id = ?`,
-        [body.rejection_reason, auth.user.id, params.id]
+        [body.rejection_reason, auth.user.id, id]
       );
     }
 
-    const updated = await db.get(`SELECT * FROM organizer_applications WHERE id = ?`, [params.id]);
+    const updated = await db.get(`SELECT * FROM organizer_applications WHERE id = ?`, [id]);
     return NextResponse.json({ application: updated });
   } catch (err) {
     console.error('[api/admin/organizers/[id]] ERROR:', err);

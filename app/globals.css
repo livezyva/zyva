@@ -150,3 +150,19 @@ h1,h2,h3,h4 { font-family: 'Space Grotesk', 'Inter', sans-serif; letter-spacing:
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Main navigation drawer */
+@keyframes zyvaMenuBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes zyvaMenuDrawerIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.zyva-menu-backdrop { animation: zyvaMenuBackdropIn .2s ease-out both; }
+.zyva-menu-drawer { animation: zyvaMenuDrawerIn .28s cubic-bezier(.22,.8,.22,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .zyva-menu-backdrop,
+  .zyva-menu-drawer { animation: none; }
+}

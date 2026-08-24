@@ -1,5 +1,6 @@
 import './globals.css';
 import 'leaflet/dist/leaflet.css';
+import LanguageProvider from '../components/LanguageProvider';
 
 export const metadata = {
   title: 'ZYVA — Tonight in Cyprus',
@@ -23,7 +24,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className="dark">
       <body className="bg-zbg text-ztext min-h-screen">
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );

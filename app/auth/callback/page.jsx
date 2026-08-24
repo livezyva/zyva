@@ -3,46 +3,52 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getBrowserSupabase } from '../../../lib/supabase';
+import { useLanguage } from '../../../components/LanguageProvider';
 
 export default function AuthCallback() {
   return (
-    <Suspense fallback={<Shell msg="Loading…" />}>
+    <Suspense fallback={<CallbackLoading />}>
       <Inner />
     </Suspense>
   );
 }
 
+function CallbackLoading() {
+  const { t } = useLanguage();
+  return <Shell msg={t('common.loading')} />;
+}
+
 function Inner() {
+  const { t } = useLanguage();
   const router = useRouter();
   const params = useSearchParams();
   const nextUrl = params.get('next') || '/';
-  const [msg, setMsg] = useState('Signing you in…');
+  const [msg, setMsg] = useState(t('auth.signingIn'));
 
   useEffect(() => {
     (async () => {
       try {
         const supabase = getBrowserSupabase();
-        // Supabase v2 auto-parses the URL fragment via detectSessionInUrl: true,
-        // so simply re-checking the session here is enough.
         const { data } = await supabase.auth.getSession();
         if (data?.session?.user) {
-          setMsg('Signed in — redirecting…');
+          setMsg(t('auth.signedIn'));
           setTimeout(() => router.replace(nextUrl), 400);
         } else {
-          setMsg('Sign-in link processed. Please sign in with your password.');
+          setMsg(t('auth.linkProcessed'));
           setTimeout(() => router.replace('/auth'), 1200);
         }
-      } catch (e) {
-        setMsg('Something went wrong. Redirecting to sign in…');
+      } catch {
+        setMsg(t('auth.callbackError'));
         setTimeout(() => router.replace('/auth'), 1200);
       }
     })();
-  }, [router, nextUrl]);
+  }, [router, nextUrl, t]);
 
   return <Shell msg={msg} />;
 }
 
 function Shell({ msg }) {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-zbg grid place-items-center px-4">
       <div className="text-center">
@@ -50,7 +56,7 @@ function Shell({ msg }) {
           <span className="font-headline font-bold text-black text-2xl">Z</span>
         </div>
         <div className="text-white font-headline text-lg">{msg}</div>
-        <Link href="/" className="text-ztext3 text-xs mt-3 inline-block hover:text-white">← Back to ZYVA</Link>
+        <Link href="/" className="text-ztext3 text-xs mt-3 inline-block hover:text-white">{t('auth.back')}</Link>
       </div>
     </div>
   );

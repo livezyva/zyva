@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS events (
     title VARCHAR(150) NOT NULL,
     slug VARCHAR(150) UNIQUE NOT NULL,
     description TEXT NOT NULL,
+    description_el TEXT,
     category VARCHAR(50) NOT NULL,
     city VARCHAR(50) NOT NULL,
     venue_name VARCHAR(150) NOT NULL,

@@ -1,21 +1,33 @@
 "use client";
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { getSavedIds } from '../lib/saved';
 import { getBrowserSupabase, isAdminEmail } from '../lib/supabase';
+import { useLanguage } from './LanguageProvider';
 
 async function fetchRole(supabase, userId) {
   try {
-    const { data } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle();
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
     return data?.role || 'CITIZEN';
-  } catch { return 'CITIZEN'; }
+  } catch {
+    return 'CITIZEN';
+  }
 }
 
 export default function Header() {
+  const pathname = usePathname();
+  const { language, setLanguage, t } = useLanguage();
   const [savedCount, setSavedCount] = useState(0);
   const [auth, setAuth] = useState({ ready: false, user: null, isAdmin: false, role: 'GUEST' });
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const closeButtonRef = useRef(null);
 
   useEffect(() => {
     const refresh = () => setSavedCount(getSavedIds().length);
@@ -25,153 +37,332 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    let sub;
+    let subscription;
+
+    const resolveAuth = async (user, supabase) => {
+      const isAdmin = isAdminEmail(user?.email);
+      const role = user ? (isAdmin ? 'ADMIN' : await fetchRole(supabase, user.id)) : 'GUEST';
+      setAuth({ ready: true, user, isAdmin, role });
+    };
+
     (async () => {
       try {
         const supabase = getBrowserSupabase();
         const { data } = await supabase.auth.getSession();
-        const u = data?.session?.user ?? null;
-        const isAdmin0 = isAdminEmail(u?.email);
-        const role0 = u ? (isAdmin0 ? 'ADMIN' : await fetchRole(supabase, u.id)) : 'GUEST';
-        setAuth({ ready: true, user: u, isAdmin: isAdmin0, role: role0 });
-        const { data: s } = supabase.auth.onAuthStateChange(async (_e, session) => {
-          const nu = session?.user ?? null;
-          const isAdmin1 = isAdminEmail(nu?.email);
-          const role1 = nu ? (isAdmin1 ? 'ADMIN' : await fetchRole(supabase, nu.id)) : 'GUEST';
-          setAuth({ ready: true, user: nu, isAdmin: isAdmin1, role: role1 });
+        await resolveAuth(data?.session?.user ?? null, supabase);
+
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+          // Resolve outside Supabase's callback tick so profile lookups never block auth events.
+          setTimeout(() => resolveAuth(session?.user ?? null, supabase), 0);
         });
-        sub = s?.subscription;
+        subscription = listener?.subscription;
       } catch {
-        // env not configured — treat as guest
+        // Environment not configured — safely display the guest menu.
         setAuth({ ready: true, user: null, isAdmin: false, role: 'GUEST' });
       }
     })();
-    return () => sub?.unsubscribe?.();
+
+    return () => subscription?.unsubscribe?.();
   }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [menuOpen]);
+
+  const closeMenu = (returnFocus = false) => {
+    setMenuOpen(false);
+    if (returnFocus) window.setTimeout(() => menuButtonRef.current?.focus(), 0);
+  };
 
   const signOut = async () => {
     try {
       const supabase = getBrowserSupabase();
       await supabase.auth.signOut();
     } catch {}
-    setMenuOpen(false);
+    closeMenu();
+    window.location.assign('/');
   };
 
-  const displayName = auth.user?.user_metadata?.full_name || auth.user?.email?.split('@')[0] || '';
-  const avatar = (displayName || 'U').slice(0, 1).toUpperCase();
+  const displayName =
+    auth.user?.user_metadata?.full_name ||
+    auth.user?.user_metadata?.name ||
+    auth.user?.email?.split('@')[0] ||
+    t('nav.member');
+  const initials = getInitials(displayName);
+  const roleLabel = auth.isAdmin
+    ? t('role.admin')
+    : t(`role.${String(auth.role || 'guest').toLowerCase()}`);
+  const isOrganizer = auth.role === 'ORGANIZER';
 
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-lg bg-black/70 border-b border-zborder">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zneon shadow-neonSoft group-hover:shadow-neon transition">
-            <span className="font-headline font-bold text-black text-lg">Z</span>
-          </span>
-          <span className="font-headline font-bold text-xl tracking-tight">ZYVA</span>
-          <span className="hidden sm:inline text-ztext3 text-xs ml-2">/ Tonight in Cyprus</span>
-        </Link>
+    <>
+      <header className="sticky top-0 z-40 border-b border-zborder bg-black/85 backdrop-blur-lg">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center">
+          <button
+            ref={menuButtonRef}
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white hover:bg-white/5 hover:text-zneon focus:outline-none focus-visible:ring-2 focus-visible:ring-zneon transition"
+            aria-label={t('nav.open')}
+            aria-expanded={menuOpen}
+            aria-controls="zyva-navigation-drawer"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
 
-        <nav className="flex items-center gap-1 sm:gap-3 text-sm">
-          <Link href="/saved" className="relative px-3 py-1.5 rounded-full border border-zborder hover:border-zneon hover:text-zneon transition">
-            Saved
-            {savedCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-zneon text-black text-[10px] font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
-                {savedCount}
-              </span>
-            )}
+          <Link href="/" className="ml-1 flex items-center gap-2.5 group" aria-label={t('nav.home')}>
+            <span className="h-8 w-1 rounded-full bg-zneon shadow-neonSoft group-hover:shadow-neon transition" />
+            <span className="font-headline font-bold text-xl tracking-[0.12em]">ZYVA</span>
+            <span className="hidden sm:inline text-ztext3 text-xs ml-1 tracking-normal">/ {t('common.tonightInCyprus')}</span>
           </Link>
 
-          {/* Contextual "List event" / "New event" CTA */}
-          {auth.ready && !auth.isAdmin && (
-            auth.role === 'ORGANIZER' ? (
-              <Link href="/organizer"
-                className="hidden sm:inline px-3 py-1.5 rounded-full bg-zneon/15 text-zneon border border-zneon/50 hover:bg-zneon hover:text-black font-semibold transition">
-                + New event
-              </Link>
-            ) : (
-              <Link href="/apply"
-                className="hidden sm:inline px-3 py-1.5 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition">
-                List an event
-              </Link>
-            )
-          )}
+          <div className="ml-auto flex items-center gap-2" aria-hidden="true">
+            <span className="hidden sm:inline text-[10px] uppercase tracking-[0.18em] text-ztext3">{t('common.discover')}</span>
+            <span className="h-2 w-2 rounded-full bg-zneon shadow-neonSoft animate-pulseNeon" />
+          </div>
+        </div>
+      </header>
 
-          {auth.isAdmin && (
-            <Link
-              href="/admin"
-              className="hidden sm:inline px-3 py-1.5 rounded-full bg-zneon/15 text-zneon border border-zneon/50 hover:bg-zneon hover:text-black font-semibold transition"
-            >
-              Admin
-            </Link>
-          )}
+      {menuOpen && (
+        <div className="fixed inset-0 z-[100]" role="presentation">
+          <button
+            type="button"
+            className="zyva-menu-backdrop absolute inset-0 h-full w-full cursor-default bg-black/75 backdrop-blur-sm"
+            onClick={() => closeMenu(true)}
+            aria-label={t('nav.close')}
+          />
 
-          {!auth.ready ? (
-            <span className="hidden sm:inline w-20 h-7 rounded-full bg-white/5 animate-pulse" />
-          ) : auth.user ? (
-            <div className="relative" ref={menuRef}>
+          <aside
+            id="zyva-navigation-drawer"
+            className="zyva-menu-drawer absolute inset-y-0 left-0 flex w-[86vw] max-w-[360px] flex-col overflow-hidden border-r border-zneon/25 bg-[#050505] shadow-[18px_0_60px_rgba(0,0,0,0.8)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('nav.navigation')}
+          >
+            <div className="h-16 shrink-0 flex items-center border-b border-zborder px-5">
+              <Link href="/" onClick={() => closeMenu()} className="flex items-center gap-2.5" aria-label={t('nav.home')}>
+                <span className="h-8 w-1 rounded-full bg-zneon shadow-neonSoft" />
+                <span className="font-headline font-bold text-xl tracking-[0.14em]">ZYVA</span>
+              </Link>
               <button
-                onClick={() => setMenuOpen(v => !v)}
-                className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-zborder hover:border-zneon transition"
-                aria-label="Account menu"
+                ref={closeButtonRef}
+                type="button"
+                onClick={() => closeMenu(true)}
+                className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl text-ztext2 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zneon transition"
+                aria-label={t('nav.close')}
               >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-zneon text-black font-bold">
-                  {avatar}
-                </span>
-                <span className="hidden sm:inline text-white font-semibold text-sm max-w-[10ch] truncate">{displayName}</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
               </button>
-              {menuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-zcard border border-zborder rounded-2xl shadow-2xl shadow-black/60 py-1 overflow-hidden">
-                  <div className="px-4 py-2 border-b border-zborder">
-                    <div className="text-white text-sm font-semibold truncate">{displayName}</div>
-                    <div className="text-ztext3 text-xs truncate">{auth.user.email}</div>
-                  </div>
-                  <Link href="/saved" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-white/5">
-                    Saved events
-                  </Link>
-                  {auth.role === 'ORGANIZER' && (
-                    <Link href="/organizer" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-zneon font-semibold hover:bg-zneon/10">
-                      🎪 Organizer dashboard
-                    </Link>
-                  )}
-                  {auth.role === 'CITIZEN' && !auth.isAdmin && (
-                    <Link href="/apply" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-white hover:bg-white/5">
-                      Apply to list events
-                    </Link>
-                  )}
-                  {auth.isAdmin && (
-                    <Link href="/admin" onClick={() => setMenuOpen(false)} className="block px-4 py-2 text-sm text-zneon font-semibold hover:bg-zneon/10">
-                      ★ Admin panel
-                    </Link>
-                  )}
-                  <button
-                    onClick={signOut}
-                    className="w-full text-left block px-4 py-2 text-sm text-white hover:bg-white/5 border-t border-zborder"
-                  >
-                    Sign out
-                  </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">
+              {!auth.ready ? (
+                <div className="mx-2 mb-5 h-[76px] animate-pulse rounded-2xl border border-zborder bg-zcard" />
+              ) : auth.user ? (
+                <div className="mx-2 mb-5 flex items-center gap-3 rounded-2xl border border-zborder bg-zcard p-3.5">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zneon font-headline text-sm font-bold text-black shadow-neonSoft">
+                    {initials}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-white">{displayName}</span>
+                    <span className="mt-0.5 block truncate text-[11px] text-ztext3">{auth.user.email}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full border border-zneon/40 bg-zneon/10 px-2 py-1 text-[9px] font-bold tracking-wider text-zneon">
+                    {roleLabel}
+                  </span>
+                </div>
+              ) : (
+                <div className="mx-2 mb-5 rounded-2xl border border-zborder bg-zcard p-4">
+                  <div className="text-sm font-bold text-white">{t('nav.welcome')}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-ztext3">{t('nav.welcomeBody')}</div>
                 </div>
               )}
+
+              <MenuLabel>{t('nav.explore')}</MenuLabel>
+              <MenuLink href="/" active={pathname === '/'} icon={<HomeIcon />} onClick={() => closeMenu()}>
+                {t('nav.discoverEvents')}
+              </MenuLink>
+              <MenuLink
+                href="/saved"
+                active={pathname === '/saved'}
+                icon={<HeartIcon />}
+                badge={savedCount > 0 ? savedCount : null}
+                onClick={() => closeMenu()}
+              >
+                {t('nav.savedEvents')}
+              </MenuLink>
+
+              <div className="mx-2 my-4 rounded-2xl border border-zborder bg-zcard p-3">
+                <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-ztext3">{t('language.label')}</div>
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('language.label')}>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage('en')}
+                    aria-pressed={language === 'en'}
+                    className={`h-10 rounded-xl border text-sm font-bold transition ${language === 'en' ? 'border-zneon bg-zneon text-black shadow-neonSoft' : 'border-zborder bg-black text-ztext2 hover:border-zneon hover:text-white'}`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage('el')}
+                    aria-pressed={language === 'el'}
+                    className={`h-10 rounded-xl border text-sm font-bold transition ${language === 'el' ? 'border-zneon bg-zneon text-black shadow-neonSoft' : 'border-zborder bg-black text-ztext2 hover:border-zneon hover:text-white'}`}
+                  >
+                    ΕΛ
+                  </button>
+                </div>
+              </div>
+
+              {auth.ready && (
+                <>
+                  <div className="mx-3 my-3 h-px bg-zborder" />
+                  <MenuLabel>{auth.isAdmin || isOrganizer ? t('nav.manage') : t('nav.forOrganizers')}</MenuLabel>
+
+                  {auth.isAdmin && (
+                    <>
+                      <MenuLink href="/admin" active={pathname.startsWith('/admin')} accent icon={<AdminIcon />} onClick={() => closeMenu()}>
+                        {t('nav.adminPortal')}
+                      </MenuLink>
+                      <MenuLink href="/organizer" active={pathname.startsWith('/organizer')} icon={<TicketIcon />} onClick={() => closeMenu()}>
+                        {t('nav.organizerPortal')}
+                      </MenuLink>
+                    </>
+                  )}
+
+                  {!auth.isAdmin && isOrganizer && (
+                    <MenuLink href="/organizer" active={pathname.startsWith('/organizer')} accent icon={<TicketIcon />} onClick={() => closeMenu()}>
+                      {t('nav.organizerPortal')}
+                    </MenuLink>
+                  )}
+
+                  {!auth.isAdmin && !isOrganizer && (
+                    <MenuLink href="/apply" active={pathname.startsWith('/apply')} icon={<PlusIcon />} onClick={() => closeMenu()}>
+                      {t('nav.apply')}
+                    </MenuLink>
+                  )}
+                </>
+              )}
             </div>
-          ) : (
-            <>
-              <Link href="/auth?mode=signup" className="hidden sm:inline px-3 py-1.5 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition">
-                Sign up
-              </Link>
-              <Link href="/auth" className="px-3 py-1.5 rounded-full bg-zneon text-black font-semibold hover:shadow-neon transition">
-                Sign in
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
+
+            <div className="shrink-0 border-t border-zborder bg-black/60 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {!auth.ready ? (
+                <div className="h-11 animate-pulse rounded-xl bg-white/5" />
+              ) : auth.user ? (
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-ztext2 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zneon transition"
+                >
+                  <span className="text-ztext3"><SignOutIcon /></span>
+                  {t('nav.signOut')}
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/auth"
+                    onClick={() => closeMenu()}
+                    className="inline-flex h-11 items-center justify-center rounded-xl border border-zborder text-sm font-semibold text-white hover:border-zneon hover:text-zneon transition"
+                  >
+                    {t('nav.signIn')}
+                  </Link>
+                  <Link
+                    href="/auth?mode=signup"
+                    onClick={() => closeMenu()}
+                    className="inline-flex h-11 items-center justify-center rounded-xl bg-zneon text-sm font-bold text-black shadow-neonSoft hover:shadow-neon transition"
+                  >
+                    {t('nav.createAccount')}
+                  </Link>
+                </div>
+              )}
+              <div className="mt-3 text-center text-[9px] uppercase tracking-[0.16em] text-ztext3">{t('common.tonightInCyprus')}</div>
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
   );
+}
+
+function MenuLabel({ children }) {
+  return <div className="px-3 pb-1.5 pt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-ztext3">{children}</div>;
+}
+
+function MenuLink({ href, active, accent, icon, badge, onClick, children }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={`group flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition ${
+        active
+          ? 'bg-zneon/10 text-white'
+          : accent
+            ? 'text-zneon hover:bg-zneon/10'
+            : 'text-ztext2 hover:bg-white/5 hover:text-white'
+      }`}
+    >
+      <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${active ? 'text-zneon' : 'text-ztext3 group-hover:text-zneon'}`}>
+        {icon}
+      </span>
+      <span>{children}</span>
+      {badge !== null && badge !== undefined && (
+        <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zneon px-1.5 text-[10px] font-bold text-black">
+          {badge}
+        </span>
+      )}
+      {!badge && <span className="ml-auto text-ztext3 group-hover:text-zneon">›</span>}
+    </Link>
+  );
+}
+
+function getInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Z';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+function HomeIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M3 11.5L12 4l9 7.5"/><path d="M5.5 10v10h13V10M9.5 20v-6h5v6"/></svg>;
+}
+function HeartIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M20.8 5.8a5.5 5.5 0 00-7.8 0L12 6.9l-1.1-1.1a5.5 5.5 0 00-7.8 7.8L12 22l8.8-8.4a5.5 5.5 0 000-7.8z"/></svg>;
+}
+function AdminIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>;
+}
+function TicketIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M4 6h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4V6z"/><path d="M12 7.5v2M12 11v2M12 14.5v2"/></svg>;
+}
+function PlusIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>;
+}
+function SignOutIcon() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>;
 }

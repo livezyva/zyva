@@ -1,6 +1,7 @@
 import { getDb } from '../../../../lib/db';
 import { verifyRequest, requireOrganizer } from '../../../../lib/supabaseServer';
 import { geocodeAddress } from '../../../../lib/geocode';
+import { normalizeVenuePublicContacts } from '../../../../lib/venueContact';
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 
@@ -43,39 +44,70 @@ export async function POST(req) {
       (new Date(body.end_datetime) - new Date(body.start_datetime)) / (24 * 3600 * 1000)
     ) || 1);
 
-    // Geocode the address if lat/lng not provided
-    let lat = body.latitude;
-    let lng = body.longitude;
-    if ((lat == null || lng == null || lat === '' || lng === '') && body.address) {
-      const geo = await geocodeAddress(body.address, body.city);
-      if (geo) { lat = geo.lat; lng = geo.lng; }
+    let publicContacts;
+    try {
+      publicContacts = normalizeVenuePublicContacts(body);
+    } catch (validationError) {
+      return NextResponse.json({ error: validationError.message }, { status: 400 });
     }
 
-    // Resolve venue: use existing or create new
+    let lat = body.latitude;
+    let lng = body.longitude;
+    let venueName = body.venue_name;
+    let venueAddress = body.address;
+    let venueCity = body.city;
+
+    // Resolve venue: a new venue may include explicitly public contact details.
+    // For an existing venue, always use the saved canonical values and ignore
+    // submitted replacements. Organizers can use a venue, but cannot modify it
+    // indirectly through event submission.
     let venueId = body.venue_id;
-    if (!venueId) {
+    if (venueId) {
+      const existingVenue = await db.get(
+        `SELECT id, name, city, address, latitude, longitude FROM venues WHERE id = ?`,
+        [venueId]
+      );
+      if (!existingVenue) {
+        return NextResponse.json({ error: 'Selected venue was not found.' }, { status: 400 });
+      }
+      venueName = existingVenue.name;
+      venueAddress = existingVenue.address;
+      venueCity = existingVenue.city;
+      lat = existingVenue.latitude;
+      lng = existingVenue.longitude;
+    } else {
+      if ((lat == null || lng == null || lat === '' || lng === '') && venueAddress) {
+        const geo = await geocodeAddress(venueAddress, venueCity);
+        if (geo) { lat = geo.lat; lng = geo.lng; }
+      }
       venueId = randomUUID();
-      const vslug = slugify(body.venue_name) + '-' + Math.random().toString(36).slice(2, 4);
-      const verifiedVal = db.kind === 'pg' ? false : 0; // organizer venues not auto-verified
+      const vslug = slugify(venueName) + '-' + Math.random().toString(36).slice(2, 4);
+      const verifiedVal = db.kind === 'pg' ? false : 0; // organizer venues require admin review
       await db.run(
-        `INSERT INTO venues (id, name, slug, city, address, latitude, longitude, is_verified)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [venueId, body.venue_name, vslug, body.city, body.address, lat, lng, verifiedVal]
+        `INSERT INTO venues
+          (id, name, slug, city, address, latitude, longitude,
+           instagram_handle, facebook_url, website_url, phone, is_verified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          venueId, venueName, vslug, venueCity, venueAddress, lat, lng,
+          publicContacts.instagram_handle, publicContacts.facebook_url,
+          publicContacts.website_url, publicContacts.phone, verifiedVal,
+        ]
       );
     }
 
     const featuredVal = db.kind === 'pg' ? false : 0; // organizers can't self-feature
     await db.run(
       `INSERT INTO events
-        (id, venue_id, title, slug, description, category, city, venue_name, address,
+        (id, venue_id, title, slug, description, description_el, category, city, venue_name, address,
          latitude, longitude, start_datetime, end_datetime, cover_image_url, ticket_url,
          price_label, status, is_featured, listing_duration_days, daily_rate_eur,
          total_cost_eur, views_count, shares_count, expires_at, submitted_by,
          contact_name, contact_email, contact_phone)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        id, venueId, body.title, slug, body.description, body.category, body.city,
-        body.venue_name, body.address, lat, lng,
+        id, venueId, body.title, slug, body.description, body.description_el || null, body.category, venueCity,
+        venueName, venueAddress, lat, lng,
         body.start_datetime, body.end_datetime, body.cover_image_url,
         body.ticket_url || null, body.price_label || 'Free Entry',
         'PENDING_APPROVAL', // always pending for organizer submissions

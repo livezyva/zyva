@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import { getBrowserSupabase, getAuthToken, getCurrentAuth } from '../../lib/supabase';
+import { useLanguage } from '../../components/LanguageProvider';
 
 const CITIES = ['Limassol', 'Nicosia', 'Paphos', 'Larnaca', 'Ayia Napa'];
 
 export default function ApplyPage() {
+  const { t, locale, cityName, localizeError } = useLanguage();
   const router = useRouter();
   const [state, setState] = useState({ loading: true, auth: null, application: null });
   const [saving, setSaving] = useState(false);
@@ -53,9 +55,9 @@ export default function ApplyPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to submit');
+      if (!res.ok) throw new Error(data?.error || t('apply.failed'));
       setState(s => ({ ...s, application: { ...form, status: 'PENDING' } }));
-    } catch (err) { setError(err.message); }
+    } catch (err) { setError(localizeError(err, 'apply.failed')); }
     finally { setSaving(false); }
   };
 
@@ -63,7 +65,7 @@ export default function ApplyPage() {
     return (
       <div className="min-h-screen bg-zbg text-white">
         <Header />
-        <div className="max-w-3xl mx-auto px-4 py-16 text-center text-ztext3">Loading…</div>
+        <div className="max-w-3xl mx-auto px-4 py-16 text-center text-ztext3">{t('common.loading')}</div>
       </div>
     );
   }
@@ -79,9 +81,9 @@ export default function ApplyPage() {
         <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
           <StatusCard
             emoji="✅"
-            title="You're an approved organizer"
-            body="You can submit events for review right from your organizer dashboard."
-            action={<Link href="/organizer" className="bg-zneon text-black font-bold px-5 py-2.5 rounded-full">Go to organizer dashboard →</Link>}
+            title={t('apply.approvedTitle')}
+            body={t('apply.approvedBody')}
+            action={<Link href="/organizer" className="bg-zneon text-black font-bold px-5 py-2.5 rounded-full">{t('apply.goDashboard')}</Link>}
           />
         </main>
       </div>
@@ -96,10 +98,10 @@ export default function ApplyPage() {
         <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
           <StatusCard
             emoji="⏳"
-            title="Application pending review"
-            body="Thanks — we've received your application. We usually review new organizers within 24 hours. You'll be able to submit events once approved."
-            meta={`Applied ${new Date(app.created_at).toLocaleString('en-GB')}`}
-            action={<Link href="/" className="text-ztext2 hover:text-white">← Back to ZYVA</Link>}
+            title={t('apply.pendingTitle')}
+            body={t('apply.pendingBody')}
+            meta={t('apply.applied', { date: new Date(app.created_at).toLocaleString(locale) })}
+            action={<Link href="/" className="text-ztext2 hover:text-white">{t('auth.back')}</Link>}
           />
         </main>
       </div>
@@ -114,80 +116,80 @@ export default function ApplyPage() {
       <Header />
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
-          <div className="text-ztext3 text-xs uppercase tracking-wider">Become an organizer</div>
-          <h1 className="font-headline text-3xl sm:text-4xl font-bold mt-1">List your events on ZYVA</h1>
+          <div className="text-ztext3 text-xs uppercase tracking-wider">{t('apply.become')}</div>
+          <h1 className="font-headline text-3xl sm:text-4xl font-bold mt-1">{t('apply.title')}</h1>
           <p className="text-ztext2 mt-2">
-            ZYVA connects Cyprus nightlife, dining, and culture with thousands of locals and tourists.
-            Fill out this quick form to be approved as an organizer. During our launch phase, listings are <span className="text-zneon font-semibold">completely free</span>.
+            {t('apply.introBefore')} <span className="text-zneon font-semibold">{t('apply.introFree')}</span>.
           </p>
         </div>
 
         {isRejected && (
           <div className="mb-5 border border-red-500/40 bg-red-500/10 rounded-xl p-4">
-            <div className="font-semibold text-red-300">Your previous application was declined</div>
-            {app.rejection_reason && <div className="text-red-200/80 text-sm mt-1">Reason: {app.rejection_reason}</div>}
-            <div className="text-red-200/80 text-sm mt-2">You can update your information and resubmit below.</div>
+            <div className="font-semibold text-red-300">{t('apply.rejectedTitle')}</div>
+            {app.rejection_reason && <div className="text-red-200/80 text-sm mt-1">{t('apply.reason', { reason: app.rejection_reason })}</div>}
+            <div className="text-red-200/80 text-sm mt-2">{t('apply.reapplyBody')}</div>
           </div>
         )}
 
         <form onSubmit={submit} className="space-y-5 bg-zcard border border-zborder rounded-2xl p-5 sm:p-6">
-          <Section title="About your business">
-            <Field label="Business name *">
+          <Section title={t('apply.aboutBusiness')}>
+            <Field label={t('apply.businessName')}>
               <input required maxLength={150} className="input" value={form.business_name}
                 onChange={e => setForm({ ...form, business_name: e.target.value })}
-                placeholder="e.g. Guaba Beach Bar" />
+                placeholder={t('apply.businessPlaceholder')} />
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="City *">
+              <Field label={t('apply.city')}>
                 <select required className="input" value={form.city}
                   onChange={e => setForm({ ...form, city: e.target.value })}>
-                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CITIES.map(c => <option key={c} value={c}>{cityName(c)}</option>)}
                 </select>
               </Field>
-              <Field label="Instagram">
+              <Field label={t('apply.instagram')}>
                 <input className="input" value={form.instagram_handle}
                   onChange={e => setForm({ ...form, instagram_handle: e.target.value })}
-                  placeholder="@yourvenue" />
+                  placeholder={t('apply.instagramPlaceholder')} />
               </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Facebook URL">
+              <Field label={t('apply.facebook')}>
                 <input className="input" value={form.facebook_url}
                   onChange={e => setForm({ ...form, facebook_url: e.target.value })}
-                  placeholder="https://facebook.com/yourvenue" />
+                  placeholder={t('apply.facebookPlaceholder')} />
               </Field>
-              <Field label="Website">
+              <Field label={t('apply.website')}>
                 <input className="input" value={form.website_url}
                   onChange={e => setForm({ ...form, website_url: e.target.value })}
-                  placeholder="https://yourvenue.com" />
+                  placeholder={t('apply.websitePlaceholder')} />
               </Field>
             </div>
           </Section>
 
-          <Section title="Contact info">
+          <Section title={t('apply.contact')}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Your name *">
+              <Field label={t('apply.fullName')}>
                 <input required maxLength={100} className="input" value={form.contact_name}
                   onChange={e => setForm({ ...form, contact_name: e.target.value })}
-                  placeholder="First and last name" />
+                  placeholder={t('apply.fullNamePlaceholder')} />
               </Field>
-              <Field label="Phone">
+              <Field label={t('apply.phone')}>
                 <input className="input" value={form.contact_phone}
                   onChange={e => setForm({ ...form, contact_phone: e.target.value })}
-                  placeholder="+357 99 123 456" />
+                  placeholder={t('apply.phonePlaceholder')} />
               </Field>
             </div>
-            <Field label="Email *">
+            <Field label={t('apply.email')}>
               <input required type="email" className="input" value={form.contact_email}
-                onChange={e => setForm({ ...form, contact_email: e.target.value })} />
+                onChange={e => setForm({ ...form, contact_email: e.target.value })}
+                placeholder={t('apply.emailPlaceholder')} />
             </Field>
           </Section>
 
-          <Section title="Anything else? (optional)">
-            <Field label="Message">
+          <Section title={t('apply.anythingElse')}>
+            <Field label={t('apply.message')}>
               <textarea rows={3} className="input" value={form.message}
                 onChange={e => setForm({ ...form, message: e.target.value })}
-                placeholder="Anything you'd like the ZYVA team to know" />
+                placeholder={t('apply.messagePlaceholder')} />
             </Field>
           </Section>
 
@@ -198,10 +200,10 @@ export default function ApplyPage() {
           )}
 
           <div className="flex items-center justify-between pt-2">
-            <Link href="/" className="text-ztext2 hover:text-white text-sm">← Back to ZYVA</Link>
+            <Link href="/" className="text-ztext2 hover:text-white text-sm">{t('auth.back')}</Link>
             <button type="submit" disabled={saving}
               className="bg-zneon text-black font-bold px-6 py-3 rounded-full shadow-neonSoft hover:shadow-neon transition disabled:opacity-60">
-              {saving ? 'Submitting…' : isRejected ? 'Resubmit application' : 'Submit application'}
+              {saving ? t('apply.submitting') : isRejected ? t('apply.resubmit') : t('apply.submit')}
             </button>
           </div>
         </form>

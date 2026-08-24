@@ -1,4 +1,5 @@
 import { getDb } from '../../../lib/db';
+import { publicEventSelect } from '../../../lib/publicData';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -21,9 +22,9 @@ export async function GET(req) {
   if (featuredOnly) clauses.push(db.kind === 'pg' ? 'e.is_featured = true' : 'e.is_featured = 1');
 
   if (q) {
-    clauses.push('(LOWER(e.title) LIKE ? OR LOWER(e.description) LIKE ? OR LOWER(e.venue_name) LIKE ? OR LOWER(e.category) LIKE ?)');
+    clauses.push('(LOWER(e.title) LIKE ? OR LOWER(e.description) LIKE ? OR LOWER(COALESCE(e.description_el, \'\')) LIKE ? OR LOWER(e.venue_name) LIKE ? OR LOWER(e.category) LIKE ?)');
     const like = '%' + q.toLowerCase() + '%';
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like);
   }
 
   const now = new Date();
@@ -56,7 +57,7 @@ export async function GET(req) {
     ? `, v.instagram_handle AS venue_instagram, v.facebook_url AS venue_facebook, v.website_url AS venue_website, v.phone AS venue_phone`
     : '';
 
-  const sql = `SELECT e.*${venueCols}
+  const sql = `SELECT ${publicEventSelect('e')}${venueCols}
     FROM events e
     LEFT JOIN venues v ON v.id = e.venue_id
     WHERE ${clauses.join(' AND ')}

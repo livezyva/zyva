@@ -3,16 +3,23 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getBrowserSupabase } from '../../lib/supabase';
+import { useLanguage } from '../../components/LanguageProvider';
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<Shell><div className="text-ztext3">Loading…</div></Shell>}>
+    <Suspense fallback={<AuthLoading />}>
       <AuthInner />
     </Suspense>
   );
 }
 
+function AuthLoading() {
+  const { t } = useLanguage();
+  return <Shell><div className="text-ztext3">{t('auth.loading')}</div></Shell>;
+}
+
 function AuthInner() {
+  const { t, localizeError } = useLanguage();
   const router = useRouter();
   const params = useSearchParams();
   const nextUrl = params.get('next') || '/';
@@ -53,7 +60,7 @@ function AuthInner() {
         });
         if (error) throw error;
         if (data.user && !data.session) {
-          setInfo('Check your inbox — click the confirmation link, then come back here to sign in.');
+          setInfo(t('auth.confirmEmail'));
           setMode('signin');
         } else if (data.session) {
           router.replace(nextUrl);
@@ -64,7 +71,7 @@ function AuthInner() {
         router.replace(nextUrl);
       }
     } catch (err) {
-      setError(prettifyError(err));
+      setError(prettifyError(err, t));
     } finally {
       setBusy(false);
     }
@@ -84,32 +91,28 @@ function AuthInner() {
       if (error) throw error;
       // The browser is being redirected to Google; nothing else to do here.
     } catch (err) {
-      setError(prettifyError(err));
+      setError(prettifyError(err, t));
       setBusy(false);
     }
   };
 
   const forgotPassword = async () => {
     setError(null); setInfo(null);
-    if (!email) { setError('Type your email above first, then click "Forgot password".'); return; }
+    if (!email) { setError(t('auth.emailFirst')); return; }
     try {
       const supabase = getBrowserSupabase();
       const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/auth/reset` : undefined;
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) throw error;
-      setInfo('Password reset link sent — check your inbox.');
-    } catch (err) { setError(prettifyError(err)); }
+      setInfo(t('auth.resetSent'));
+    } catch (err) { setError(prettifyError(err, t)); }
   };
 
   if (envMissing) {
     return (
       <Shell>
-        <h1 className="font-headline text-2xl font-bold mb-3">Auth not configured yet</h1>
-        <p className="text-ztext2 text-sm">
-          Add <code className="bg-black/60 px-1 rounded">NEXT_PUBLIC_SUPABASE_URL</code> and
-          <code className="bg-black/60 px-1 rounded"> NEXT_PUBLIC_SUPABASE_ANON_KEY</code> in Netlify
-          → Environment variables, then trigger a new deploy. See <code>SETUP-AUTH.md</code>.
-        </p>
+        <h1 className="font-headline text-2xl font-bold mb-3">{t('auth.notConfigured')}</h1>
+        <p className="text-ztext2 text-sm">{t('auth.notConfiguredBody')}</p>
       </Shell>
     );
   }
@@ -121,12 +124,12 @@ function AuthInner() {
           <span className="font-headline font-bold text-black text-2xl">Z</span>
         </Link>
         <h1 className="font-headline text-3xl font-bold">
-          {mode === 'signup' ? 'Create your account' : 'Welcome back'}
+          {mode === 'signup' ? t('auth.createTitle') : t('auth.welcomeBack')}
         </h1>
         <p className="text-ztext2 text-sm mt-1">
           {mode === 'signup'
-            ? 'Sign up to save events and (soon) list your own.'
-            : 'Sign in to ZYVA'}
+            ? t('auth.createBody')
+            : t('auth.signInBody')}
         </p>
       </div>
 
@@ -143,31 +146,31 @@ function AuthInner() {
           <path fill="#FBBC05" d="M5.84 14.09a6.6 6.6 0 0 1 0-4.18V7.07H2.18a11 11 0 0 0 0 9.86l3.66-2.84z"/>
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/>
         </svg>
-        Continue with Google
+        {t('auth.google')}
       </button>
 
       {/* Divider */}
       <div className="flex items-center gap-3 my-4">
         <div className="h-px flex-1 bg-zborder"></div>
-        <span className="text-ztext3 text-xs uppercase tracking-wider">or with email</span>
+        <span className="text-ztext3 text-xs uppercase tracking-wider">{t('auth.orEmail')}</span>
         <div className="h-px flex-1 bg-zborder"></div>
       </div>
 
       <form onSubmit={submit} className="space-y-3">
         {mode === 'signup' && (
-          <Field label="Name">
+          <Field label={t('auth.yourName')}>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="input"
-              placeholder="Your name"
+              placeholder={t('auth.namePlaceholder')}
               autoComplete="name"
             />
           </Field>
         )}
 
-        <Field label="Email">
+        <Field label={t('auth.yourEmail')}>
           <input
             type="email"
             required
@@ -175,11 +178,11 @@ function AuthInner() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="input"
-            placeholder="you@example.com"
+            placeholder={t('auth.emailPlaceholder')}
           />
         </Field>
 
-        <Field label="Password">
+        <Field label={t('auth.yourPassword')}>
           <input
             type="password"
             required
@@ -188,7 +191,7 @@ function AuthInner() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input"
-            placeholder={mode === 'signup' ? 'Choose a password (min 6 chars)' : 'Your password'}
+            placeholder={mode === 'signup' ? t('auth.newPasswordPlaceholder') : t('auth.passwordPlaceholder')}
           />
         </Field>
 
@@ -200,7 +203,7 @@ function AuthInner() {
           disabled={busy}
           className="w-full inline-flex items-center justify-center gap-2 bg-zneon text-black font-bold px-5 py-3 rounded-xl shadow-neonSoft hover:shadow-neon transition disabled:opacity-60"
         >
-          {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+          {busy ? t('common.pleaseWait') : mode === 'signup' ? t('auth.createAccount') : t('auth.signIn')}
         </button>
 
         <div className="flex items-center justify-between text-xs text-ztext3 pt-2">
@@ -209,18 +212,18 @@ function AuthInner() {
             onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(null); setInfo(null); }}
             className="hover:text-zneon underline underline-offset-2"
           >
-            {mode === 'signin' ? "Don't have an account? Sign up →" : '← Have an account? Sign in'}
+            {mode === 'signin' ? t('auth.noAccount') : t('auth.haveAccount')}
           </button>
           {mode === 'signin' && (
             <button type="button" onClick={forgotPassword} className="hover:text-white">
-              Forgot password?
+              {t('auth.forgot')}
             </button>
           )}
         </div>
       </form>
 
       <div className="mt-6 pt-4 border-t border-zborder text-center">
-        <Link href="/" className="text-ztext3 text-xs hover:text-white">← Back to ZYVA</Link>
+        <Link href="/" className="text-ztext3 text-xs hover:text-white">{t('auth.back')}</Link>
       </div>
 
       <style jsx>{`
@@ -263,11 +266,11 @@ function Shell({ children }) {
   );
 }
 
-function prettifyError(err) {
+function prettifyError(err, t) {
   const msg = err?.message || String(err);
-  if (/invalid.*credentials/i.test(msg)) return 'Wrong email or password.';
-  if (/email.*not.*confirmed/i.test(msg)) return 'You need to confirm your email first — check your inbox.';
-  if (/already.*registered/i.test(msg)) return 'That email is already registered. Try signing in instead.';
-  if (/network|fetch/i.test(msg)) return 'Network error. Check your connection and try again.';
+  if (/invalid.*credentials/i.test(msg)) return t('auth.wrongCredentials');
+  if (/email.*not.*confirmed/i.test(msg)) return t('auth.confirmFirst');
+  if (/already.*registered/i.test(msg)) return t('auth.alreadyRegistered');
+  if (/network|fetch/i.test(msg)) return t('auth.networkError');
   return msg;
 }
