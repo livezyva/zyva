@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { formatEventTime, CATEGORY_META } from '../lib/format';
 import { isSaved, toggleSaved } from '../lib/saved';
 import { instagramUrl } from '../lib/maps';
+import { useLanguage } from './LanguageProvider';
 
 export default function EventCard({ event, featured = false }) {
+  const { language, t, categoryShort, cityName, priceLabel } = useLanguage();
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setSaved(isSaved(event.id));
@@ -14,7 +16,7 @@ export default function EventCard({ event, featured = false }) {
     return () => window.removeEventListener('zyva:saved-changed', refresh);
   }, [event.id]);
 
-  const { dayLabel, time } = formatEventTime(event.start_datetime, event.end_datetime);
+  const { dayLabel, time } = formatEventTime(event.start_datetime, event.end_datetime, language);
   const cat = CATEGORY_META[event.category] || { emoji: '✨', short: event.category };
   const isFeatured = featured || event.is_featured;
 
@@ -40,12 +42,12 @@ export default function EventCard({ event, featured = false }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         {isFeatured && (
           <span className="absolute top-3 left-3 bg-zneon text-black text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shadow-neonSoft">
-            ★ Recommended
+            ★ {t('event.recommended')}
           </span>
         )}
         <button
           onClick={onSave}
-          aria-label={saved ? 'Remove from saved' : 'Save event'}
+          aria-label={saved ? t('event.removeSaved') : t('event.save')}
           className={`absolute top-3 right-3 h-9 w-9 rounded-full border flex items-center justify-center backdrop-blur-md transition ${
             saved
               ? 'bg-zneon text-black border-zneon shadow-neonSoft'
@@ -58,7 +60,7 @@ export default function EventCard({ event, featured = false }) {
         </button>
         <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
           <span className="bg-black/70 backdrop-blur border border-zborder text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-            {cat.emoji} {cat.short}
+            {cat.emoji} {categoryShort(event.category)}
           </span>
           <span className="bg-zneon/90 text-black text-xs font-bold px-2.5 py-1 rounded-full">
             {dayLabel} · {time}
@@ -76,10 +78,10 @@ export default function EventCard({ event, featured = false }) {
           </svg>
           <span className="truncate">{event.venue_name}</span>
           <span className="text-ztext3">·</span>
-          <span className="text-ztext3">{event.city}</span>
+          <span className="text-ztext3">{cityName(event.city)}</span>
         </p>
         <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-zneon font-semibold text-sm">{event.price_label}</span>
+          <span className="text-zneon font-semibold text-sm">{priceLabel(event.price_label)}</span>
           <div className="flex items-center gap-1">
             <VenueMiniLinks event={event} />
             <span className="text-ztext3 text-xs flex items-center gap-1 ml-1">
@@ -96,6 +98,7 @@ export default function EventCard({ event, featured = false }) {
 }
 
 function VenueMiniLinks({ event }) {
+  const { t } = useLanguage();
   const stop = (e) => { e.stopPropagation(); };
   const ig = instagramUrl(event.venue_instagram);
   const fb = event.venue_facebook;
@@ -119,7 +122,7 @@ function VenueMiniLinks({ event }) {
       )}
       {web && (
         <a href={web} target="_blank" rel="noreferrer" onClick={stop}
-          title="Website"
+          title={t('common.website')}
           className="h-6 w-6 rounded-full flex items-center justify-center text-ztext3 hover:text-zneon hover:bg-zneon/10 transition">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
         </a>

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapContainer, TileLayer, Marker, useMap, ZoomControl } from 'react-leaflet';
 import L from 'leaflet';
+import { useLanguage } from './LanguageProvider';
 
 /**
  * Real interactive dark map (looks exactly like Google Maps at night) with
@@ -92,6 +93,7 @@ function MapController({ clusters, selectedId }) {
 // City quick-zoom bar (renders inside the map container using useMap)
 function CityBar() {
   const map = useMap();
+  const { t, cityName } = useLanguage();
   return (
     <div className="absolute top-3 left-3 z-[500] flex flex-wrap gap-1.5">
       {CITY_PRESETS.map(c => (
@@ -100,7 +102,7 @@ function CityBar() {
           onClick={() => map.flyTo([c.lat, c.lng], c.zoom, { duration: 0.7 })}
           className="px-3 py-1 rounded-full text-[11px] font-semibold bg-black/80 backdrop-blur text-white border border-zborder hover:border-zneon hover:text-zneon transition"
         >
-          {c.label}
+          {c.id === 'all' ? t('map.allCyprus') : cityName(c.label)}
         </button>
       ))}
     </div>

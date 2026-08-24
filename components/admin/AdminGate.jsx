@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getBrowserSupabase, isAdminEmail } from '../../lib/supabase';
+import { useLanguage } from '../LanguageProvider';
 
 /**
  * Protects admin pages. Verifies session + admin whitelist.
  * `children` receives ({ user, signOut }) as render props.
  */
 export default function AdminGate({ children }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [state, setState] = useState({ status: 'loading', user: null });
 
@@ -41,21 +43,15 @@ export default function AdminGate({ children }) {
   };
 
   if (state.status === 'loading') {
-    return <FullScreen msg="Checking admin access…" />;
+    return <FullScreen msg={t('admin.checking')} />;
   }
   if (state.status === 'misconfigured') {
     return (
       <FullScreen>
         <div className="text-3xl mb-2">⚙️</div>
-        <div className="font-headline font-bold text-xl">Admin not configured</div>
-        <p className="text-ztext2 text-sm mt-2 max-w-md mx-auto">
-          Add <code className="bg-black/60 px-1 rounded">NEXT_PUBLIC_SUPABASE_URL</code>,
-          <code className="bg-black/60 px-1 rounded"> NEXT_PUBLIC_SUPABASE_ANON_KEY</code>,
-          <code className="bg-black/60 px-1 rounded"> NEXT_PUBLIC_ADMIN_EMAILS</code>, and
-          <code className="bg-black/60 px-1 rounded"> ADMIN_EMAILS</code> to Netlify and redeploy.
-          See <code>SETUP-AUTH.md</code>.
-        </p>
-        <Link href="/" className="mt-4 inline-block text-zneon text-sm hover:underline">← Back to site</Link>
+        <div className="font-headline font-bold text-xl">{t('admin.notConfigured')}</div>
+        <p className="text-ztext2 text-sm mt-2 max-w-md mx-auto">{t('admin.notConfiguredBody')}</p>
+        <Link href="/" className="mt-4 inline-block text-zneon text-sm hover:underline">{t('admin.backSite')}</Link>
       </FullScreen>
     );
   }
@@ -63,13 +59,10 @@ export default function AdminGate({ children }) {
     return (
       <FullScreen>
         <div className="text-3xl mb-2">🚫</div>
-        <div className="font-headline font-bold text-xl">Not an admin</div>
-        <p className="text-ztext2 text-sm mt-2">
-          You're signed in as <span className="text-white">{state.user.email}</span>, but that email
-          is not on the admin whitelist.
-        </p>
+        <div className="font-headline font-bold text-xl">{t('admin.notAdmin')}</div>
+        <p className="text-ztext2 text-sm mt-2">{t('admin.notAdminBody', { email: state.user.email })}</p>
         <button onClick={signOut} className="mt-4 bg-zneon text-black font-bold px-4 py-2 rounded-full">
-          Sign out
+          {t('admin.signOut')}
         </button>
       </FullScreen>
     );

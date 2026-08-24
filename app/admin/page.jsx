@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AdminGate from '../../components/admin/AdminGate';
 import { getBrowserSupabase } from '../../lib/supabase';
 import EventForm from '../../components/admin/EventForm';
+import { useLanguage } from '../../components/LanguageProvider';
 
 export default function AdminPage() {
   return (
@@ -14,6 +15,7 @@ export default function AdminPage() {
 }
 
 function AdminDashboard({ user, signOut }) {
+  const { language, setLanguage, t, localizeError } = useLanguage();
   const [tab, setTab] = useState('events'); // events | organizers
   const [events, setEvents] = useState([]);
   const [venues, setVenues] = useState([]);
@@ -36,8 +38,8 @@ function AdminDashboard({ user, signOut }) {
       const ev = await evRes.json();
       const ve = await veRes.json();
       const ap = await apRes.json();
-      if (!evRes.ok) throw new Error(ev?.error || 'Failed to load events');
-      if (!veRes.ok) throw new Error(ve?.error || 'Failed to load venues');
+      if (!evRes.ok) throw new Error(ev?.error || t('errors.generic'));
+      if (!veRes.ok) throw new Error(ve?.error || t('errors.generic'));
       setEvents(ev.events || []);
       setVenues(ve.venues || []);
       setApplications(ap.applications || []);
@@ -77,13 +79,13 @@ function AdminDashboard({ user, signOut }) {
       method: 'PATCH',
       body: JSON.stringify({ is_featured: !ev.is_featured }),
     });
-    if (!res.ok) { alert('Failed to update'); return; }
+    if (!res.ok) { alert(t('admin.updateFailed')); return; }
     setEvents(list => list.map(x => x.id === ev.id ? { ...x, is_featured: !ev.is_featured } : x));
   };
   const remove = async (ev) => {
-    if (!confirm(`Delete "${ev.title}"? This cannot be undone.`)) return;
+    if (!confirm(t('admin.deleteConfirm', { title: ev.title }))) return;
     const res = await authedFetch(`/api/admin/events/${ev.id}`, { method: 'DELETE' });
-    if (!res.ok) { alert('Failed to delete'); return; }
+    if (!res.ok) { alert(t('admin.deleteFailed')); return; }
     setEvents(list => list.filter(x => x.id !== ev.id));
   };
   const approve = async (ev) => {
@@ -91,8 +93,12 @@ function AdminDashboard({ user, signOut }) {
       method: 'PATCH',
       body: JSON.stringify({ status: 'APPROVED_ACTIVE' }),
     });
-    if (!res.ok) { alert('Failed to approve'); return; }
-    setEvents(list => list.map(x => x.id === ev.id ? { ...x, status: 'APPROVED_ACTIVE' } : x));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      alert(localizeError(data?.error, 'admin.approveFailed'));
+      return;
+    }
+    setEvents(list => list.map(x => x.id === ev.id ? { ...x, ...(data?.event || {}), status: 'APPROVED_ACTIVE' } : x));
   };
 
   const openNew = () => { setEditing(null); setFormOpen(true); };
@@ -112,15 +118,21 @@ function AdminDashboard({ user, signOut }) {
               </span>
               <span className="font-headline font-bold text-xl">ZYVA</span>
             </Link>
-            <span className="hidden sm:inline text-ztext3 text-xs">/ Admin</span>
+            <span className="hidden sm:inline text-ztext3 text-xs">/ {t('role.admin')}</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <Link href="/" className="hidden sm:inline text-ztext2 hover:text-white px-3 py-1.5">View site ↗</Link>
+            <Link href="/" className="hidden sm:inline text-ztext2 hover:text-white px-3 py-1.5">{t('admin.viewSite')}</Link>
             <CleanupButton onDone={loadAll} />
             <GeocodeButton onDone={loadAll} />
+            <div className="inline-flex rounded-full border border-zborder bg-zcard p-0.5" role="group" aria-label={t('language.label')}>
+              <button type="button" onClick={() => setLanguage('en')} aria-pressed={language === 'en'}
+                className={`rounded-full px-2 py-1 text-[10px] font-bold ${language === 'en' ? 'bg-zneon text-black' : 'text-ztext2'}`}>EN</button>
+              <button type="button" onClick={() => setLanguage('el')} aria-pressed={language === 'el'}
+                className={`rounded-full px-2 py-1 text-[10px] font-bold ${language === 'el' ? 'bg-zneon text-black' : 'text-ztext2'}`}>ΕΛ</button>
+            </div>
             <span className="hidden sm:inline text-ztext3 text-xs">{user.email}</span>
             <button onClick={signOut} className="px-3 py-1.5 rounded-full border border-zborder text-white hover:border-zneon hover:text-zneon transition text-sm">
-              Sign out
+              {t('admin.signOut')}
             </button>
           </div>
         </div>
@@ -131,11 +143,11 @@ function AdminDashboard({ user, signOut }) {
         <div className="flex gap-1 mb-6 border-b border-zborder">
           <TabButton active={tab === 'events'} onClick={() => setTab('events')}
             badge={stats.pending}>
-            Events
+            {t('admin.events')}
           </TabButton>
           <TabButton active={tab === 'organizers'} onClick={() => setTab('organizers')}
             badge={applications.filter(a => a.status === 'PENDING').length}>
-            Organizers
+            {t('admin.organizers')}
           </TabButton>
         </div>
 
@@ -148,10 +160,10 @@ function AdminDashboard({ user, signOut }) {
         <>
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          <Stat label="Total events" value={stats.total} />
-          <Stat label="Live now" value={stats.active} accent />
-          <Stat label="Pending review" value={stats.pending} warn={stats.pending > 0} />
-          <Stat label="Recommended" value={stats.featured} />
+          <Stat label={t('admin.totalEvents')} value={stats.total} />
+          <Stat label={t('admin.liveNow')} value={stats.active} accent />
+          <Stat label={t('admin.pendingReview')} value={stats.pending} warn={stats.pending > 0} />
+          <Stat label={t('admin.recommended')} value={stats.featured} />
         </div>
 
         {/* Toolbar */}
@@ -164,17 +176,17 @@ function AdminDashboard({ user, signOut }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search events, venues, categories…"
+              placeholder={t('admin.search')}
               className="w-full bg-zcard border border-zborder rounded-full pl-10 pr-4 py-2.5 text-sm text-white placeholder-ztext3 focus:outline-none focus:border-zneon"
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
             {[
-              { id: 'all', label: 'All' },
-              { id: 'active', label: 'Live' },
-              { id: 'pending', label: 'Pending' },
-              { id: 'featured', label: 'Recommended' },
-              { id: 'past', label: 'Past' },
+              { id: 'all', label: t('admin.filterAll') },
+              { id: 'active', label: t('admin.filterLive') },
+              { id: 'pending', label: t('admin.filterPending') },
+              { id: 'featured', label: t('admin.filterRecommended') },
+              { id: 'past', label: t('admin.filterPast') },
             ].map(t => (
               <button
                 key={t.id}
@@ -192,7 +204,7 @@ function AdminDashboard({ user, signOut }) {
             className="inline-flex items-center gap-2 bg-zneon text-black font-bold px-4 py-2.5 rounded-full shadow-neonSoft hover:shadow-neon transition whitespace-nowrap"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
-            New event
+            {t('admin.newEvent')}
           </button>
         </div>
 
@@ -207,18 +219,18 @@ function AdminDashboard({ user, signOut }) {
           <SkeletonTable />
         ) : filtered.length === 0 ? (
           <div className="border border-dashed border-zborder rounded-2xl py-16 text-center text-ztext2">
-            No events match. Try a different filter.
+            {t('admin.noMatch')}
           </div>
         ) : (
           <div className="overflow-x-auto bg-zcard border border-zborder rounded-2xl">
             <table className="w-full text-sm">
               <thead className="text-ztext3 text-xs uppercase tracking-wider border-b border-zborder">
                 <tr>
-                  <th className="text-left p-3 pl-4">Event</th>
-                  <th className="text-left p-3 hidden md:table-cell">When</th>
-                  <th className="text-left p-3 hidden sm:table-cell">Status</th>
-                  <th className="text-left p-3 hidden md:table-cell">Views</th>
-                  <th className="text-right p-3 pr-4">Actions</th>
+                  <th className="text-left p-3 pl-4">{t('admin.colEvent')}</th>
+                  <th className="text-left p-3 hidden md:table-cell">{t('admin.colWhen')}</th>
+                  <th className="text-left p-3 hidden sm:table-cell">{t('admin.colStatus')}</th>
+                  <th className="text-left p-3 hidden md:table-cell">{t('admin.colViews')}</th>
+                  <th className="text-right p-3 pr-4">{t('admin.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -288,6 +300,7 @@ function TabButton({ active, onClick, badge, children }) {
 }
 
 function OrganizersPanel({ applications, onReviewed }) {
+  const { t, locale, cityName } = useLanguage();
   const [filter, setFilter] = useState('PENDING');
   const [reviewing, setReviewing] = useState(null); // application being reviewed
   const [rejectReason, setRejectReason] = useState('');
@@ -303,7 +316,7 @@ function OrganizersPanel({ applications, onReviewed }) {
         body: JSON.stringify({ action, rejection_reason: reason }),
       });
       const data = await res.json();
-      if (!res.ok) { alert(`Failed: ${data?.error || 'unknown'}`); return; }
+      if (!res.ok) { alert(t('admin.actionFailed', { error: data?.error || t('errors.generic') })); return; }
       setReviewing(null);
       setRejectReason('');
       onReviewed && onReviewed();
@@ -320,7 +333,7 @@ function OrganizersPanel({ applications, onReviewed }) {
                 ? 'bg-zneon text-black border-zneon'
                 : 'bg-zcard text-ztext2 border-zborder hover:border-zneon hover:text-zneon'
             }`}>
-            {s.charAt(0) + s.slice(1).toLowerCase()}
+            {{ PENDING: t('admin.applicationFilterPending'), APPROVED: t('admin.applicationFilterApproved'), REJECTED: t('admin.applicationFilterRejected'), ALL: t('admin.applicationFilterAll') }[s]}
             {s !== 'ALL' && (
               <span className="ml-1 text-[10px]">
                 ({applications.filter(a => a.status === s).length})
@@ -332,7 +345,7 @@ function OrganizersPanel({ applications, onReviewed }) {
 
       {list.length === 0 ? (
         <div className="border border-dashed border-zborder rounded-2xl py-16 text-center text-ztext2">
-          No {filter.toLowerCase()} applications.
+          {t('admin.noApplications', { status: { PENDING: t('admin.applicationFilterPending'), APPROVED: t('admin.applicationFilterApproved'), REJECTED: t('admin.applicationFilterRejected'), ALL: t('admin.applicationFilterAll') }[filter].toLowerCase() })}
         </div>
       ) : (
         <div className="space-y-2">
@@ -345,7 +358,7 @@ function OrganizersPanel({ applications, onReviewed }) {
                     <StatusBadge status={app.status} />
                   </div>
                   <div className="text-ztext2 text-sm mt-0.5">
-                    {app.city} · {app.contact_name} · <a href={`mailto:${app.contact_email}`} className="text-zneon hover:underline">{app.contact_email}</a>
+                    {cityName(app.city)} · {app.contact_name} · <a href={`mailto:${app.contact_email}`} className="text-zneon hover:underline">{app.contact_email}</a>
                     {app.contact_phone && <span> · {app.contact_phone}</span>}
                   </div>
                   <div className="flex flex-wrap gap-3 mt-2 text-xs">
@@ -365,12 +378,12 @@ function OrganizersPanel({ applications, onReviewed }) {
                   )}
                   {app.rejection_reason && (
                     <div className="mt-2 text-red-300 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-2 py-1">
-                      <strong>Rejected:</strong> {app.rejection_reason}
+                      <strong>{t('admin.rejectedLabel')}</strong> {app.rejection_reason}
                     </div>
                   )}
                   <div className="text-ztext3 text-[11px] mt-2">
-                    Applied {new Date(app.created_at).toLocaleString('en-GB')}
-                    {app.reviewed_at && ` · Reviewed ${new Date(app.reviewed_at).toLocaleString('en-GB')}`}
+                    {t('admin.appliedDate', { date: new Date(app.created_at).toLocaleString(locale) })}
+                    {app.reviewed_at && ` · ${t('admin.reviewedDate', { date: new Date(app.reviewed_at).toLocaleString(locale) })}`}
                   </div>
                 </div>
                 {app.status === 'PENDING' && (
@@ -378,12 +391,12 @@ function OrganizersPanel({ applications, onReviewed }) {
                     <button onClick={() => act(app.id, 'APPROVE')}
                       disabled={busy}
                       className="bg-zneon text-black font-bold text-xs px-3 py-2 rounded-full hover:shadow-neonSoft disabled:opacity-60">
-                      ✓ Approve
+                      ✓ {t('admin.approve')}
                     </button>
                     <button onClick={() => { setReviewing(app); setRejectReason(''); }}
                       disabled={busy}
                       className="border border-zborder text-red-300 font-semibold text-xs px-3 py-2 rounded-full hover:border-red-500 hover:bg-red-500/10 disabled:opacity-60">
-                      ✕ Reject
+                      ✕ {t('admin.reject')}
                     </button>
                   </div>
                 )}
@@ -396,21 +409,21 @@ function OrganizersPanel({ applications, onReviewed }) {
       {reviewing && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm grid place-items-center p-4">
           <div className="w-full max-w-md bg-zcard border border-zborder rounded-2xl p-5">
-            <div className="font-headline font-bold text-lg mb-1">Reject application</div>
-            <div className="text-ztext2 text-sm mb-4">Tell {reviewing.business_name} why. They'll see this and can update & resubmit.</div>
+            <div className="font-headline font-bold text-lg mb-1">{t('admin.rejectApplication')}</div>
+            <div className="text-ztext2 text-sm mb-4">{t('admin.rejectHelp', { business: reviewing.business_name })}</div>
             <textarea rows={4} autoFocus value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
-              placeholder="e.g. Missing business address; please provide a website or social proof."
+              placeholder={t('admin.rejectPlaceholder')}
               className="w-full bg-black/60 border border-zborder rounded-xl px-3 py-2 text-white placeholder-ztext3 focus:outline-none focus:border-zneon" />
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setReviewing(null)}
                 className="px-4 py-2 rounded-full border border-zborder text-white text-sm">
-                Cancel
+                {t('common.cancel')}
               </button>
               <button onClick={() => act(reviewing.id, 'REJECT', rejectReason)}
                 disabled={busy || !rejectReason.trim()}
                 className="bg-red-500 text-white font-bold px-4 py-2 rounded-full text-sm disabled:opacity-60">
-                {busy ? 'Sending…' : 'Send rejection'}
+                {busy ? t('admin.sending') : t('admin.sendRejection')}
               </button>
             </div>
           </div>
@@ -421,13 +434,14 @@ function OrganizersPanel({ applications, onReviewed }) {
 }
 
 function StatusBadge({ status }) {
+  const { t } = useLanguage();
   const map = {
-    'PENDING':  { label: 'Pending', cls: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
-    'APPROVED': { label: 'Approved', cls: 'bg-zneon/20 text-zneon border-zneon/40' },
-    'REJECTED': { label: 'Rejected', cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
+    'PENDING':  { label: t('admin.applicationFilterPending'), cls: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
+    'APPROVED': { label: t('admin.applicationFilterApproved'), cls: 'bg-zneon/20 text-zneon border-zneon/40' },
+    'REJECTED': { label: t('admin.applicationFilterRejected'), cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
   };
-  const s = map[status] || { label: status, cls: 'bg-white/10 text-ztext2' };
-  return <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${s.cls}`}>{s.label}</span>;
+  const item = map[status] || { label: status, cls: 'bg-white/10 text-ztext2' };
+  return <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${item.cls}`}>{item.label}</span>;
 }
 
 function prettyDomain(url) {
@@ -448,23 +462,27 @@ function Stat({ label, value, accent, warn }) {
 }
 
 function StatusPill({ status, end }) {
-  const now = new Date();
-  const isPast = end && new Date(end) < now;
+  const { t } = useLanguage();
+  const isPast = end && new Date(end) < new Date();
   const map = {
-    'APPROVED_ACTIVE': isPast ? { label: 'Past', cls: 'bg-white/10 text-ztext2 border-white/20' } : { label: 'Live', cls: 'bg-zneon/20 text-zneon border-zneon/40' },
-    'PENDING_APPROVAL': { label: 'Pending', cls: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
-    'PAYMENT_PENDING':  { label: 'Awaiting payment', cls: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
-    'REJECTED':         { label: 'Rejected', cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
-    'EXPIRED':          { label: 'Expired', cls: 'bg-white/10 text-ztext2 border-white/20' },
-    'DRAFT':            { label: 'Draft', cls: 'bg-white/5 text-ztext3 border-white/10' },
+    'APPROVED_ACTIVE': isPast
+      ? { label: t('admin.statusPast'), cls: 'bg-white/10 text-ztext2 border-white/20' }
+      : { label: t('admin.statusLive'), cls: 'bg-zneon/20 text-zneon border-zneon/40' },
+    'PENDING_APPROVAL': { label: t('admin.statusPending'), cls: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' },
+    'PAYMENT_PENDING':  { label: t('admin.statusPayment'), cls: 'bg-blue-500/20 text-blue-300 border-blue-500/40' },
+    'REJECTED':         { label: t('admin.statusRejected'), cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
+    'EXPIRED':          { label: t('admin.statusExpired'), cls: 'bg-white/10 text-ztext2 border-white/20' },
+    'DRAFT':            { label: t('admin.statusDraft'), cls: 'bg-white/5 text-ztext3 border-white/10' },
   };
-  const s = map[status] || { label: status, cls: 'bg-white/10 text-ztext2 border-white/20' };
-  return <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${s.cls}`}>{s.label}</span>;
+  const item = map[status] || { label: status, cls: 'bg-white/10 text-ztext2 border-white/20' };
+  return <span className={`inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${item.cls}`}>{item.label}</span>;
 }
 
 function EventRow({ ev, onEdit, onDelete, onFeature, onApprove }) {
-  const start = new Date(ev.start_datetime);
-  const when = start.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const { t, locale, cityName, categoryName } = useLanguage();
+  const when = new Date(ev.start_datetime).toLocaleString(locale, {
+    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
   return (
     <tr className="border-b border-zborder last:border-b-0 hover:bg-white/[0.02]">
       <td className="p-3 pl-4">
@@ -472,11 +490,11 @@ function EventRow({ ev, onEdit, onDelete, onFeature, onApprove }) {
           <img src={ev.cover_image_url} alt="" className="w-14 h-14 object-cover rounded-lg shrink-0" />
           <div className="min-w-0">
             <div className="font-semibold text-white leading-tight truncate flex items-center gap-1.5">
-              {ev.is_featured && <span title="Featured" className="text-zneon">★</span>}
+              {ev.is_featured && <span title={t('event.recommended')} className="text-zneon">★</span>}
               {ev.title}
             </div>
             <div className="text-ztext3 text-xs mt-0.5 truncate">
-              {ev.venue_name} · {ev.city} · {ev.category}
+              {ev.venue_name} · {cityName(ev.city)} · {categoryName(ev.category)}
             </div>
             <div className="sm:hidden mt-1.5"><StatusPill status={ev.status} end={ev.end_datetime} /></div>
           </div>
@@ -488,37 +506,26 @@ function EventRow({ ev, onEdit, onDelete, onFeature, onApprove }) {
       <td className="p-3 pr-4">
         <div className="flex justify-end gap-1">
           {ev.status === 'PENDING_APPROVAL' && (
-            <button
-              onClick={onApprove}
-              title="Approve"
-              className="px-2.5 py-1 rounded-full bg-zneon/20 text-zneon border border-zneon/40 text-xs font-bold hover:bg-zneon hover:text-black"
-            >
-              Approve
+            <button onClick={onApprove} title={t('admin.approve')}
+              className="px-2.5 py-1 rounded-full bg-zneon/20 text-zneon border border-zneon/40 text-xs font-bold hover:bg-zneon hover:text-black">
+              {t('admin.approve')}
             </button>
           )}
-          <button
-            onClick={onFeature}
-            title={ev.is_featured ? 'Remove from Recommended' : 'Mark as Recommended'}
+          <button onClick={onFeature}
+            title={ev.is_featured ? t('admin.removeRecommended') : t('admin.markRecommended')}
             className={`h-8 w-8 rounded-full border flex items-center justify-center transition ${
               ev.is_featured ? 'bg-zneon text-black border-zneon' : 'bg-zcard text-ztext2 border-zborder hover:border-zneon hover:text-zneon'
-            }`}
-          >
+            }`}>
             ★
           </button>
-          <button
-            onClick={onEdit}
-            title="Edit"
-            className="h-8 w-8 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition flex items-center justify-center"
-          >
+          <button onClick={onEdit} title={t('admin.edit')}
+            className="h-8 w-8 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
           </button>
-          <button
-            onClick={onDelete}
-            title="Delete"
-            className="h-8 w-8 rounded-full border border-zborder text-ztext2 hover:border-red-500 hover:text-red-400 transition flex items-center justify-center"
-          >
+          <button onClick={onDelete} title={t('admin.delete')}
+            className="h-8 w-8 rounded-full border border-zborder text-ztext2 hover:border-red-500 hover:text-red-400 transition flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/>
             </svg>
@@ -530,58 +537,54 @@ function EventRow({ ev, onEdit, onDelete, onFeature, onApprove }) {
 }
 
 function CleanupButton({ onDone }) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const run = async () => {
-    if (!confirm('Delete all events that ended more than 7 days ago?\n\n(This also runs automatically every night at 4am.)')) return;
+    if (!confirm(t('admin.cleanupConfirm'))) return;
     setBusy(true);
     try {
       const res = await authedFetch('/api/admin/cleanup', { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Cleanup failed');
-      alert(`Deleted ${data.deleted} event(s) older than ${data.retention_days} days.`);
-      onDone && onDone();
-    } catch (e) { alert(`Cleanup failed: ${e.message}`); }
+      if (!res.ok) throw new Error(data?.error || t('errors.generic'));
+      alert(t('admin.cleanupDone', { deleted: data.deleted, days: data.retention_days }));
+      onDone?.();
+    } catch (error) { alert(t('admin.cleanupFailed', { error: error.message })); }
     finally { setBusy(false); }
   };
   return (
-    <button
-      onClick={run}
-      disabled={busy}
-      title="Delete events ended >7 days ago"
-      className="hidden sm:inline px-3 py-1.5 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition text-sm disabled:opacity-60"
-    >
-      🧹 {busy ? 'Cleaning…' : 'Cleanup'}
+    <button onClick={run} disabled={busy} title={t('admin.cleanupTitle')}
+      className="hidden sm:inline px-3 py-1.5 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition text-sm disabled:opacity-60">
+      🧹 {busy ? t('admin.cleaning') : t('admin.cleanup')}
     </button>
   );
 }
 
 function GeocodeButton({ onDone }) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const run = async () => {
-    if (!confirm('Look up map coordinates for all events that are missing them?\n\nThis uses OpenStreetMap (up to 25 events per run, ~30 seconds).')) return;
+    if (!confirm(t('admin.geocodeConfirm'))) return;
     setBusy(true);
     try {
       const res = await authedFetch('/api/admin/geocode-missing', { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Geocoding failed');
-      const notFoundList = (data.results || []).filter(r => r.status === 'not_found');
-      let msg = `Scanned ${data.scanned} event(s).\n✓ Geocoded: ${data.geocoded}\n✕ Not found: ${data.not_found}`;
+      if (!res.ok) throw new Error(data?.error || t('errors.generic'));
+      const notFoundList = (data.results || []).filter(result => result.status === 'not_found');
+      let message = t('admin.geocodeSummary', {
+        scanned: data.scanned, geocoded: data.geocoded, notFound: data.not_found,
+      });
       if (notFoundList.length) {
-        msg += `\n\nCouldn't find:\n` + notFoundList.slice(0, 5).map(r => `• ${r.title}`).join('\n');
+        message += `\n\n${t('admin.couldNotFind')}\n` + notFoundList.slice(0, 5).map(result => `• ${result.title}`).join('\n');
       }
-      alert(msg);
-      onDone && onDone();
-    } catch (e) { alert(`Geocoding failed: ${e.message}`); }
+      alert(message);
+      onDone?.();
+    } catch (error) { alert(t('admin.geocodeFailed', { error: error.message })); }
     finally { setBusy(false); }
   };
   return (
-    <button
-      onClick={run}
-      disabled={busy}
-      title="Look up map coordinates for events missing them"
-      className="hidden sm:inline px-3 py-1.5 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition text-sm disabled:opacity-60"
-    >
-      📍 {busy ? 'Locating…' : 'Fix map pins'}
+    <button onClick={run} disabled={busy} title={t('admin.geocodeTitle')}
+      className="hidden sm:inline px-3 py-1.5 rounded-full border border-zborder text-ztext2 hover:border-zneon hover:text-zneon transition text-sm disabled:opacity-60">
+      📍 {busy ? t('admin.locating') : t('admin.fixPins')}
     </button>
   );
 }

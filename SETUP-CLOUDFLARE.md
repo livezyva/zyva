@@ -36,19 +36,24 @@ Use:
 
 The build creates a standard OpenNext Worker. `cf:deploy` uses `--keep-vars` so runtime values created in Cloudflare are not removed by later deployments.
 
-## Build variable required before the first build
+## Workers Builds variables
 
-Add this in Cloudflare's **Build variables and secrets** section:
+Add these in Cloudflare's **Build → Variables and secrets** section. Next.js needs every `NEXT_PUBLIC_*` value while it compiles the browser application.
 
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the same legacy anon key used in Netlify
+- Secret: `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` = the private direct PostgreSQL URL for `zyva_cloudflare` on port 5432 with `sslmode=require`
+- Secret: `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the same legacy anon key used in Netlify
+- Text: `NEXT_PUBLIC_SUPABASE_URL=https://gmelqqasahwnqlnupacl.supabase.co`
+- Text: `NEXT_PUBLIC_ADMIN_EMAILS=livezyva@gmail.com`
 
-Mark it as encrypted/secret if Cloudflare offers that option. Although this key is used by browser code, it should still be handled carefully in dashboards and screenshots.
+Never put the database URL, password, or Google Translation key in a `NEXT_PUBLIC_*` variable.
 
 The following non-secret runtime values are already declared in `wrangler.jsonc`:
 
 - `NEXT_PUBLIC_SUPABASE_URL=https://gmelqqasahwnqlnupacl.supabase.co`
 - `NEXT_PUBLIC_ADMIN_EMAILS=livezyva@gmail.com`
 - `ADMIN_EMAILS=livezyva@gmail.com`
+
+For v17 automatic Greek descriptions, add `GOOGLE_TRANSLATE_API_KEY` as an encrypted **Runtime** secret. See `SETUP-BILINGUAL.md`. It is not a build variable.
 
 ## Hyperdrive binding
 

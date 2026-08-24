@@ -5,10 +5,14 @@ import Header from './Header';
 import FilterBar from './FilterBar';
 import FeaturedCarousel from './FeaturedCarousel';
 import EventCard from './EventCard';
+import { useLanguage } from './LanguageProvider';
 
-const MapView = dynamic(() => import('./MapView'), { ssr: false, loading: () => (
-  <div className="h-[70vh] rounded-2xl border border-zborder bg-zcard grid place-items-center text-ztext3">Loading map…</div>
-) });
+function MapLoading() {
+  const { t } = useLanguage();
+  return <div className="h-[70vh] rounded-2xl border border-zborder bg-zcard grid place-items-center text-ztext3">{t('discover.loadingMap')}</div>;
+}
+
+const MapView = dynamic(() => import('./MapView'), { ssr: false, loading: () => <MapLoading /> });
 
 function useDebounced(value, delay = 250) {
   const [d, setD] = useState(value);
@@ -20,6 +24,7 @@ function useDebounced(value, delay = 250) {
 }
 
 export default function DiscoverPage() {
+  const { t } = useLanguage();
   const [filters, setFilters] = useState({ q: '', timeframe: 'all', city: 'All', category: 'All' });
   const [events, setEvents] = useState([]);
   const [featured, setFeatured] = useState([]);
@@ -83,14 +88,14 @@ export default function DiscoverPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
           <div className="inline-flex items-center gap-2 bg-zcard border border-zborder rounded-full px-3 py-1 text-xs text-ztext2 mb-4">
             <span className="h-2 w-2 rounded-full bg-zneon animate-pulseNeon" />
-            {totalCount ? `${totalCount} live events across Cyprus` : 'Live from Cyprus tonight'}
+            {totalCount ? t('discover.liveCount', { count: totalCount }) : t('discover.liveTonight')}
           </div>
           <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-none">
-            The pulse of <span className="text-zneon">Cyprus</span>,
-            <br className="hidden sm:block" /> in your pocket.
+            {t('discover.heroBefore')} <span className="text-zneon">{t('discover.heroCyprus')}</span>,
+            <br className="hidden sm:block" /> {t('discover.heroAfter')}
           </h1>
           <p className="text-ztext2 mt-4 max-w-2xl text-base sm:text-lg">
-            Discover clubs, dining, beach bars, festivals and culture happening tonight — from Limassol to Ayia Napa.
+            {t('discover.heroBody')}
           </p>
         </div>
       </section>
@@ -124,7 +129,7 @@ export default function DiscoverPage() {
 
         <footer className="pt-16 pb-10 text-center text-ztext3 text-xs border-t border-zborder mt-16">
           <div className="font-headline text-zneon font-bold tracking-wider mb-2">ZYVA</div>
-          <div>© {new Date().getFullYear()} ZYVA — Tonight in Cyprus. Launching in Limassol · Nicosia · Paphos · Larnaca · Ayia Napa.</div>
+          <div>{t('discover.footer', { year: new Date().getFullYear() })}</div>
         </footer>
       </main>
     </div>
@@ -132,16 +137,24 @@ export default function DiscoverPage() {
 }
 
 function EmptyState() {
+  const { t } = useLanguage();
   return (
     <div className="border border-dashed border-zborder rounded-2xl py-20 text-center">
       <div className="text-4xl mb-3">🌒</div>
-      <div className="font-headline font-bold text-xl">Nothing here yet</div>
-      <div className="text-ztext2 text-sm mt-1">Try clearing filters, or pick another city.</div>
+      <div className="font-headline font-bold text-xl">{t('discover.emptyTitle')}</div>
+      <div className="text-ztext2 text-sm mt-1">{t('discover.emptyBody')}</div>
     </div>
   );
 }
 
 function ListView({ loading, events, grouped }) {
+  const { t } = useLanguage();
+  const groupLabels = {
+    Tonight: t('group.tonight'),
+    Tomorrow: t('group.tomorrow'),
+    'This Weekend': t('group.weekend'),
+    Upcoming: t('group.upcoming'),
+  };
   if (loading && events.length === 0) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -165,7 +178,7 @@ function ListView({ loading, events, grouped }) {
         <div key={label}>
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="font-headline font-bold text-2xl sm:text-3xl">
-              {label} <span className="text-ztext3 text-base font-medium">({list.length})</span>
+              {groupLabels[label] || label} <span className="text-ztext3 text-base font-medium">({list.length})</span>
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

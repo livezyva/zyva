@@ -21,9 +21,9 @@ export async function GET(req) {
   if (featuredOnly) clauses.push(db.kind === 'pg' ? 'e.is_featured = true' : 'e.is_featured = 1');
 
   if (q) {
-    clauses.push('(LOWER(e.title) LIKE ? OR LOWER(e.description) LIKE ? OR LOWER(e.venue_name) LIKE ? OR LOWER(e.category) LIKE ?)');
+    clauses.push('(LOWER(e.title) LIKE ? OR LOWER(e.description) LIKE ? OR LOWER(COALESCE(e.description_el, \'\')) LIKE ? OR LOWER(e.venue_name) LIKE ? OR LOWER(e.category) LIKE ?)');
     const like = '%' + q.toLowerCase() + '%';
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like);
   }
 
   const now = new Date();

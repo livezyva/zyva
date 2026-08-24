@@ -1,6 +1,7 @@
 import { getDb } from '../../../../../lib/db';
 import { verifyRequest, requireAdmin } from '../../../../../lib/supabaseServer';
 import { NextResponse } from 'next/server';
+import { translateDescriptionToGreek } from '../../../../../lib/translate';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,15 +9,18 @@ async function safe(handler) {
   try { return await handler(); }
   catch (err) {
     console.error('[api/admin/events/[id]] ERROR:', err);
+    const status = err?.code === 'TRANSLATION_NOT_CONFIGURED' ? 409
+      : err?.code?.startsWith?.('TRANSLATION_') ? 502
+        : 500;
     return NextResponse.json(
       { error: err?.message || String(err), code: err?.code || null },
-      { status: 500 }
+      { status }
     );
   }
 }
 
 const EDITABLE = new Set([
-  'title', 'description', 'category', 'city', 'venue_name', 'address',
+  'title', 'description', 'description_el', 'category', 'city', 'venue_name', 'address',
   'latitude', 'longitude', 'start_datetime', 'end_datetime',
   'cover_image_url', 'ticket_url', 'price_label', 'status', 'is_featured',
   'venue_id', 'contact_name', 'contact_email', 'contact_phone',
@@ -32,6 +36,18 @@ export async function PATCH(req, { params }) {
 
     const db = getDb();
     const body = await req.json();
+    const existing = await db.get(`SELECT * FROM events WHERE id = ?`, [id]);
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+    // Generate a missing Greek description once, at admin approval—not on page views.
+    if (body.status === 'APPROVED_ACTIVE') {
+      const englishDescription = body.description ?? existing.description;
+      const greekDescription = body.description_el ?? existing.description_el;
+      if (!String(greekDescription || '').trim()) {
+        body.description_el = await translateDescriptionToGreek(englishDescription);
+      }
+    }
+
     const sets = [], vals = [];
     for (const [k, v] of Object.entries(body)) {
       if (!EDITABLE.has(k)) continue;

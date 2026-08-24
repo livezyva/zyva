@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getSavedIds } from '../../lib/saved';
 import EventCard from '../../components/EventCard';
+import { useLanguage } from '../../components/LanguageProvider';
 
 export default function SavedClient() {
+  const { t } = useLanguage();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,18 +29,18 @@ export default function SavedClient() {
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
       <div className="mb-8">
-        <div className="text-ztext3 text-sm uppercase tracking-wider">Your list</div>
-        <h1 className="font-headline text-4xl sm:text-5xl font-bold tracking-tight mt-1">Saved events</h1>
+        <div className="text-ztext3 text-sm uppercase tracking-wider">{t('saved.yourList')}</div>
+        <h1 className="font-headline text-4xl sm:text-5xl font-bold tracking-tight mt-1">{t('saved.title')}</h1>
       </div>
       {loading ? (
-        <div className="text-ztext2">Loading…</div>
+        <div className="text-ztext2">{t('common.loading')}</div>
       ) : events.length === 0 ? (
         <div className="border border-dashed border-zborder rounded-2xl py-20 text-center">
           <div className="text-4xl mb-3">🔖</div>
-          <div className="font-headline font-bold text-xl">No saved events yet</div>
-          <div className="text-ztext2 text-sm mt-1 mb-5">Tap the bookmark on any event to save it here.</div>
+          <div className="font-headline font-bold text-xl">{t('saved.emptyTitle')}</div>
+          <div className="text-ztext2 text-sm mt-1 mb-5">{t('saved.emptyBody')}</div>
           <Link href="/" className="inline-flex items-center gap-2 bg-zneon text-black font-bold px-5 py-2.5 rounded-full">
-            Discover events →
+            {t('saved.discover')}
           </Link>
         </div>
       ) : (

@@ -67,14 +67,14 @@ export async function POST(req) {
     const featuredVal = db.kind === 'pg' ? false : 0; // organizers can't self-feature
     await db.run(
       `INSERT INTO events
-        (id, venue_id, title, slug, description, category, city, venue_name, address,
+        (id, venue_id, title, slug, description, description_el, category, city, venue_name, address,
          latitude, longitude, start_datetime, end_datetime, cover_image_url, ticket_url,
          price_label, status, is_featured, listing_duration_days, daily_rate_eur,
          total_cost_eur, views_count, shares_count, expires_at, submitted_by,
          contact_name, contact_email, contact_phone)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        id, venueId, body.title, slug, body.description, body.category, body.city,
+        id, venueId, body.title, slug, body.description, body.description_el || null, body.category, body.city,
         body.venue_name, body.address, lat, lng,
         body.start_datetime, body.end_datetime, body.cover_image_url,
         body.ticket_url || null, body.price_label || 'Free Entry',

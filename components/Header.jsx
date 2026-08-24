@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { getSavedIds } from '../lib/saved';
 import { getBrowserSupabase, isAdminEmail } from '../lib/supabase';
+import { useLanguage } from './LanguageProvider';
 
 async function fetchRole(supabase, userId) {
   try {
@@ -21,6 +22,7 @@ async function fetchRole(supabase, userId) {
 
 export default function Header() {
   const pathname = usePathname();
+  const { language, setLanguage, t } = useLanguage();
   const [savedCount, setSavedCount] = useState(0);
   const [auth, setAuth] = useState({ ready: false, user: null, isAdmin: false, role: 'GUEST' });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -106,9 +108,11 @@ export default function Header() {
     auth.user?.user_metadata?.full_name ||
     auth.user?.user_metadata?.name ||
     auth.user?.email?.split('@')[0] ||
-    'ZYVA member';
+    t('nav.member');
   const initials = getInitials(displayName);
-  const roleLabel = auth.isAdmin ? 'ADMIN' : auth.role;
+  const roleLabel = auth.isAdmin
+    ? t('role.admin')
+    : t(`role.${String(auth.role || 'guest').toLowerCase()}`);
   const isOrganizer = auth.role === 'ORGANIZER';
 
   return (
@@ -120,7 +124,7 @@ export default function Header() {
             type="button"
             onClick={() => setMenuOpen(true)}
             className="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white hover:bg-white/5 hover:text-zneon focus:outline-none focus-visible:ring-2 focus-visible:ring-zneon transition"
-            aria-label="Open navigation menu"
+            aria-label={t('nav.open')}
             aria-expanded={menuOpen}
             aria-controls="zyva-navigation-drawer"
           >
@@ -129,14 +133,14 @@ export default function Header() {
             </svg>
           </button>
 
-          <Link href="/" className="ml-1 flex items-center gap-2.5 group" aria-label="ZYVA home">
+          <Link href="/" className="ml-1 flex items-center gap-2.5 group" aria-label={t('nav.home')}>
             <span className="h-8 w-1 rounded-full bg-zneon shadow-neonSoft group-hover:shadow-neon transition" />
             <span className="font-headline font-bold text-xl tracking-[0.12em]">ZYVA</span>
-            <span className="hidden sm:inline text-ztext3 text-xs ml-1 tracking-normal">/ Tonight in Cyprus</span>
+            <span className="hidden sm:inline text-ztext3 text-xs ml-1 tracking-normal">/ {t('common.tonightInCyprus')}</span>
           </Link>
 
           <div className="ml-auto flex items-center gap-2" aria-hidden="true">
-            <span className="hidden sm:inline text-[10px] uppercase tracking-[0.18em] text-ztext3">Discover</span>
+            <span className="hidden sm:inline text-[10px] uppercase tracking-[0.18em] text-ztext3">{t('common.discover')}</span>
             <span className="h-2 w-2 rounded-full bg-zneon shadow-neonSoft animate-pulseNeon" />
           </div>
         </div>
@@ -148,7 +152,7 @@ export default function Header() {
             type="button"
             className="zyva-menu-backdrop absolute inset-0 h-full w-full cursor-default bg-black/75 backdrop-blur-sm"
             onClick={() => closeMenu(true)}
-            aria-label="Close navigation menu"
+            aria-label={t('nav.close')}
           />
 
           <aside
@@ -156,10 +160,10 @@ export default function Header() {
             className="zyva-menu-drawer absolute inset-y-0 left-0 flex w-[86vw] max-w-[360px] flex-col overflow-hidden border-r border-zneon/25 bg-[#050505] shadow-[18px_0_60px_rgba(0,0,0,0.8)]"
             role="dialog"
             aria-modal="true"
-            aria-label="ZYVA navigation"
+            aria-label={t('nav.navigation')}
           >
             <div className="h-16 shrink-0 flex items-center border-b border-zborder px-5">
-              <Link href="/" onClick={() => closeMenu()} className="flex items-center gap-2.5" aria-label="ZYVA home">
+              <Link href="/" onClick={() => closeMenu()} className="flex items-center gap-2.5" aria-label={t('nav.home')}>
                 <span className="h-8 w-1 rounded-full bg-zneon shadow-neonSoft" />
                 <span className="font-headline font-bold text-xl tracking-[0.14em]">ZYVA</span>
               </Link>
@@ -168,7 +172,7 @@ export default function Header() {
                 type="button"
                 onClick={() => closeMenu(true)}
                 className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl text-ztext2 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zneon transition"
-                aria-label="Close navigation menu"
+                aria-label={t('nav.close')}
               >
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
                   <path d="M6 6l12 12M18 6L6 18" />
@@ -194,14 +198,14 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="mx-2 mb-5 rounded-2xl border border-zborder bg-zcard p-4">
-                  <div className="text-sm font-bold text-white">Welcome to ZYVA</div>
-                  <div className="mt-1 text-xs leading-relaxed text-ztext3">Sign in to manage your account and list events.</div>
+                  <div className="text-sm font-bold text-white">{t('nav.welcome')}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-ztext3">{t('nav.welcomeBody')}</div>
                 </div>
               )}
 
-              <MenuLabel>Explore</MenuLabel>
+              <MenuLabel>{t('nav.explore')}</MenuLabel>
               <MenuLink href="/" active={pathname === '/'} icon={<HomeIcon />} onClick={() => closeMenu()}>
-                Discover events
+                {t('nav.discoverEvents')}
               </MenuLink>
               <MenuLink
                 href="/saved"
@@ -210,34 +214,56 @@ export default function Header() {
                 badge={savedCount > 0 ? savedCount : null}
                 onClick={() => closeMenu()}
               >
-                Saved events
+                {t('nav.savedEvents')}
               </MenuLink>
+
+              <div className="mx-2 my-4 rounded-2xl border border-zborder bg-zcard p-3">
+                <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-ztext3">{t('language.label')}</div>
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label={t('language.label')}>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage('en')}
+                    aria-pressed={language === 'en'}
+                    className={`h-10 rounded-xl border text-sm font-bold transition ${language === 'en' ? 'border-zneon bg-zneon text-black shadow-neonSoft' : 'border-zborder bg-black text-ztext2 hover:border-zneon hover:text-white'}`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage('el')}
+                    aria-pressed={language === 'el'}
+                    className={`h-10 rounded-xl border text-sm font-bold transition ${language === 'el' ? 'border-zneon bg-zneon text-black shadow-neonSoft' : 'border-zborder bg-black text-ztext2 hover:border-zneon hover:text-white'}`}
+                  >
+                    ΕΛ
+                  </button>
+                </div>
+              </div>
 
               {auth.ready && (
                 <>
                   <div className="mx-3 my-3 h-px bg-zborder" />
-                  <MenuLabel>{auth.isAdmin || isOrganizer ? 'Manage' : 'For organizers'}</MenuLabel>
+                  <MenuLabel>{auth.isAdmin || isOrganizer ? t('nav.manage') : t('nav.forOrganizers')}</MenuLabel>
 
                   {auth.isAdmin && (
                     <>
                       <MenuLink href="/admin" active={pathname.startsWith('/admin')} accent icon={<AdminIcon />} onClick={() => closeMenu()}>
-                        Admin Portal
+                        {t('nav.adminPortal')}
                       </MenuLink>
                       <MenuLink href="/organizer" active={pathname.startsWith('/organizer')} icon={<TicketIcon />} onClick={() => closeMenu()}>
-                        Organizer Portal
+                        {t('nav.organizerPortal')}
                       </MenuLink>
                     </>
                   )}
 
                   {!auth.isAdmin && isOrganizer && (
                     <MenuLink href="/organizer" active={pathname.startsWith('/organizer')} accent icon={<TicketIcon />} onClick={() => closeMenu()}>
-                      Organizer Portal
+                      {t('nav.organizerPortal')}
                     </MenuLink>
                   )}
 
                   {!auth.isAdmin && !isOrganizer && (
                     <MenuLink href="/apply" active={pathname.startsWith('/apply')} icon={<PlusIcon />} onClick={() => closeMenu()}>
-                      Apply to list events
+                      {t('nav.apply')}
                     </MenuLink>
                   )}
                 </>
@@ -254,7 +280,7 @@ export default function Header() {
                   className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-ztext2 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zneon transition"
                 >
                   <span className="text-ztext3"><SignOutIcon /></span>
-                  Sign out
+                  {t('nav.signOut')}
                 </button>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
@@ -263,18 +289,18 @@ export default function Header() {
                     onClick={() => closeMenu()}
                     className="inline-flex h-11 items-center justify-center rounded-xl border border-zborder text-sm font-semibold text-white hover:border-zneon hover:text-zneon transition"
                   >
-                    Sign in
+                    {t('nav.signIn')}
                   </Link>
                   <Link
                     href="/auth?mode=signup"
                     onClick={() => closeMenu()}
                     className="inline-flex h-11 items-center justify-center rounded-xl bg-zneon text-sm font-bold text-black shadow-neonSoft hover:shadow-neon transition"
                   >
-                    Create account
+                    {t('nav.createAccount')}
                   </Link>
                 </div>
               )}
-              <div className="mt-3 text-center text-[9px] uppercase tracking-[0.16em] text-ztext3">Tonight in Cyprus</div>
+              <div className="mt-3 text-center text-[9px] uppercase tracking-[0.16em] text-ztext3">{t('common.tonightInCyprus')}</div>
             </div>
           </aside>
         </div>
