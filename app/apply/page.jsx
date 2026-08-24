@@ -132,62 +132,63 @@ export default function ApplyPage() {
 
         <form onSubmit={submit} className="space-y-5 bg-zcard border border-zborder rounded-2xl p-5 sm:p-6">
           <Section title="About your business">
-            <Field label="Business name *">
+            <Field label="Your business name *">
               <input required maxLength={150} className="input" value={form.business_name}
                 onChange={e => setForm({ ...form, business_name: e.target.value })}
-                placeholder="e.g. Guaba Beach Bar" />
+                placeholder="Your business name" />
             </Field>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="City *">
+              <Field label="Your city *">
                 <select required className="input" value={form.city}
                   onChange={e => setForm({ ...form, city: e.target.value })}>
                   {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </Field>
-              <Field label="Instagram">
+              <Field label="Your Instagram">
                 <input className="input" value={form.instagram_handle}
                   onChange={e => setForm({ ...form, instagram_handle: e.target.value })}
-                  placeholder="@yourvenue" />
+                  placeholder="Your business Instagram handle" />
               </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Facebook URL">
+              <Field label="Your Facebook page">
                 <input className="input" value={form.facebook_url}
                   onChange={e => setForm({ ...form, facebook_url: e.target.value })}
-                  placeholder="https://facebook.com/yourvenue" />
+                  placeholder="Your business Facebook page URL" />
               </Field>
-              <Field label="Website">
+              <Field label="Your website">
                 <input className="input" value={form.website_url}
                   onChange={e => setForm({ ...form, website_url: e.target.value })}
-                  placeholder="https://yourvenue.com" />
+                  placeholder="Your business website URL" />
               </Field>
             </div>
           </Section>
 
           <Section title="Contact info">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Your name *">
+              <Field label="Your full name *">
                 <input required maxLength={100} className="input" value={form.contact_name}
                   onChange={e => setForm({ ...form, contact_name: e.target.value })}
-                  placeholder="First and last name" />
+                  placeholder="Your first and last name" />
               </Field>
-              <Field label="Phone">
+              <Field label="Your phone">
                 <input className="input" value={form.contact_phone}
                   onChange={e => setForm({ ...form, contact_phone: e.target.value })}
-                  placeholder="+357 99 123 456" />
+                  placeholder="Your phone number" />
               </Field>
             </div>
-            <Field label="Email *">
+            <Field label="Your email *">
               <input required type="email" className="input" value={form.contact_email}
-                onChange={e => setForm({ ...form, contact_email: e.target.value })} />
+                onChange={e => setForm({ ...form, contact_email: e.target.value })}
+                placeholder="Your email address" />
             </Field>
           </Section>
 
           <Section title="Anything else? (optional)">
-            <Field label="Message">
+            <Field label="Your message">
               <textarea rows={3} className="input" value={form.message}
                 onChange={e => setForm({ ...form, message: e.target.value })}
-                placeholder="Anything you'd like the ZYVA team to know" />
+                placeholder="Your message to the ZYVA team (optional)" />
             </Field>
           </Section>
 

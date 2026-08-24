@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-black/55 border border-zborder rounded-xl px-4 py-3 text-white placeholder-ztext3 focus:outline-none focus:border-zneon"
-              placeholder="New password (min 6 chars)"
+              placeholder="Choose your new password (minimum 6 characters)"
               autoFocus
             />
             {error && <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2">{error}</div>}

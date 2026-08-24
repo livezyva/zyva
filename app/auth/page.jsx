@@ -155,7 +155,7 @@ function AuthInner() {
 
       <form onSubmit={submit} className="space-y-3">
         {mode === 'signup' && (
-          <Field label="Name">
+          <Field label="Your name">
             <input
               type="text"
               value={name}
@@ -167,7 +167,7 @@ function AuthInner() {
           </Field>
         )}
 
-        <Field label="Email">
+        <Field label="Your email">
           <input
             type="email"
             required
@@ -175,11 +175,11 @@ function AuthInner() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="input"
-            placeholder="you@example.com"
+            placeholder="Your email address"
           />
         </Field>
 
-        <Field label="Password">
+        <Field label="Your password">
           <input
             type="password"
             required
@@ -188,7 +188,7 @@ function AuthInner() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input"
-            placeholder={mode === 'signup' ? 'Choose a password (min 6 chars)' : 'Your password'}
+            placeholder={mode === 'signup' ? 'Choose your password (minimum 6 characters)' : 'Your password'}
           />
         </Field>
 

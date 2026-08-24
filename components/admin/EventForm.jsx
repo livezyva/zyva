@@ -97,17 +97,17 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
 
   const validate = (s) => {
     if (s === 1) {
-      if (!contactName.trim() || !contactEmail.trim()) { setError('Name and email are required.'); return false; }
+      if (!contactName.trim() || !contactEmail.trim()) { setError('Your full name and email are required.'); return false; }
     }
-    if (s === 2) { if (!coverUrl) { setError('Pick or paste an image.'); return false; } }
+    if (s === 2) { if (!coverUrl) { setError('Choose your event cover image or paste its URL.'); return false; } }
     if (s === 3) {
-      if (!venueName.trim() || !address.trim() || !city) { setError('Venue, address and city are required.'); return false; }
-      if (!startDt || !endDt) { setError('Start and end date/time are required.'); return false; }
+      if (!venueName.trim() || !address.trim() || !city) { setError('Your venue name, address and city are required.'); return false; }
+      if (!startDt || !endDt) { setError('Your event start and end date/time are required.'); return false; }
       if (new Date(endDt) <= new Date(startDt)) { setError('End time must be after start time.'); return false; }
     }
     if (s === 4) {
-      if (!title.trim()) { setError('Event title is required.'); return false; }
-      if (!description.trim() || description.length < 20) { setError('Description must be at least 20 characters.'); return false; }
+      if (!title.trim()) { setError('Your event title is required.'); return false; }
+      if (!description.trim() || description.length < 20) { setError('Your event description must be at least 20 characters.'); return false; }
     }
     return true;
   };
@@ -183,14 +183,14 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
 
           {step === 1 && (
             <Section title="Contact info" hint="Who's running this event? For admin & receipts.">
-              <Field label="Full name *">
-                <input className="input" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Your name" />
+              <Field label="Your full name *">
+                <input className="input" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Your first and last name" />
               </Field>
-              <Field label="Email *">
-                <input type="email" className="input" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="you@example.com" />
+              <Field label="Your email *">
+                <input type="email" className="input" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="Your email address" />
               </Field>
-              <Field label="Phone (optional)">
-                <input className="input" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="+357 99 123 456" />
+              <Field label="Your phone (optional)">
+                <input className="input" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder="Your phone number" />
               </Field>
             </Section>
           )}
@@ -258,7 +258,7 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
                     className="input"
                     value={coverUrl}
                     onChange={e => setCoverUrl(e.target.value)}
-                    placeholder="https://..."
+                    placeholder="Your event cover image URL"
                   />
                 </div>
               </details>
@@ -310,7 +310,7 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
               </div>
 
               {!customVenue ? (
-                <Field label="Venue *">
+                <Field label="Your venue *">
                   <select className="input" value={venueId} onChange={e => setVenueId(e.target.value)}>
                     {venues.map(v => (
                       <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
@@ -319,23 +319,23 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
                 </Field>
               ) : (
                 <>
-                  <Field label="Venue name *">
-                    <input className="input" value={venueName} onChange={e => setVenueName(e.target.value)} placeholder="e.g. Guaba Beach Bar" />
+                  <Field label="Your venue name *">
+                    <input className="input" value={venueName} onChange={e => setVenueName(e.target.value)} placeholder="Your venue name" />
                   </Field>
-                  <Field label="Address *">
-                    <input className="input" value={address} onChange={e => setAddress(e.target.value)} placeholder="Street, number, area" />
+                  <Field label="Your venue address *">
+                    <input className="input" value={address} onChange={e => setAddress(e.target.value)} placeholder="Your venue's street, number and area" />
                   </Field>
                   <div className="grid grid-cols-3 gap-3">
-                    <Field label="City *">
+                    <Field label="Your venue city *">
                       <select className="input" value={city} onChange={e => setCity(e.target.value)}>
                         {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </Field>
-                    <Field label="Latitude">
-                      <input className="input" value={lat} onChange={e => setLat(e.target.value)} placeholder="34.7025" />
+                    <Field label="Your venue latitude">
+                      <input className="input" value={lat} onChange={e => setLat(e.target.value)} placeholder="Your venue latitude (optional)" />
                     </Field>
-                    <Field label="Longitude">
-                      <input className="input" value={lng} onChange={e => setLng(e.target.value)} placeholder="33.1077" />
+                    <Field label="Your venue longitude">
+                      <input className="input" value={lng} onChange={e => setLng(e.target.value)} placeholder="Your venue longitude (optional)" />
                     </Field>
                   </div>
                   <div className="text-ztext3 text-[11px] bg-zneon/5 border border-zneon/20 rounded-lg p-2">
@@ -346,10 +346,10 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <Field label="Start *">
+                <Field label="Your event start *">
                   <input type="datetime-local" className="input" value={startDt} onChange={e => setStartDt(e.target.value)} />
                 </Field>
-                <Field label="End *">
+                <Field label="Your event end *">
                   <input type="datetime-local" className="input" value={endDt} onChange={e => setEndDt(e.target.value)} />
                 </Field>
               </div>
@@ -358,24 +358,24 @@ export default function EventForm({ initial, venues, onClose, onSaved, asOrganiz
 
           {step === 4 && (
             <Section title="Event details" hint="The story people will read.">
-              <Field label="Title *">
-                <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Full Moon Party — August Edition" />
+              <Field label="Your event title *">
+                <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Your event title" />
               </Field>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Field label="Category *">
+                <Field label="Your event category *">
                   <select className="input" value={category} onChange={e => setCategory(e.target.value)}>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </Field>
-                <Field label="Price label">
-                  <input className="input" value={priceLabel} onChange={e => setPriceLabel(e.target.value)} placeholder='e.g. "Free Entry" or "€15 Entry"' />
+                <Field label="Your price or entry details">
+                  <input className="input" value={priceLabel} onChange={e => setPriceLabel(e.target.value)} placeholder='Your price, for example "Free Entry" or "€15 Entry"' />
                 </Field>
               </div>
-              <Field label="Ticket / booking link (optional)">
-                <input className="input" value={ticketUrl} onChange={e => setTicketUrl(e.target.value)} placeholder="https://…" />
+              <Field label="Your ticket or booking link (optional)">
+                <input className="input" value={ticketUrl} onChange={e => setTicketUrl(e.target.value)} placeholder="Your ticket or reservation URL" />
               </Field>
-              <Field label="Description *">
-                <textarea rows={5} className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="What's the vibe, line-up, dress code, what to expect…" />
+              <Field label="Your event description *">
+                <textarea rows={5} className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe your event's vibe, line-up, dress code and what guests can expect" />
                 <div className="text-ztext3 text-[11px] mt-1">{description.length} characters (min 20)</div>
               </Field>
               {!asOrganizer && (
