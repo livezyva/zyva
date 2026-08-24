@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zyva",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-24",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://gmelqqasahwnqlnupacl.supabase.co",
+    "NEXT_PUBLIC_ADMIN_EMAILS": "livezyva@gmail.com",
+    "ADMIN_EMAILS": "livezyva@gmail.com"
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "3f99371e1df14e7594d90305ffa24162"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

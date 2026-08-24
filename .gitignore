@@ -23,3 +23,9 @@ data/*.db-wal
 
 # Netlify
 .netlify/
+
+# Cloudflare / OpenNext generated output
+.open-next/
+.wrangler/
+.dev.vars
+worker-configuration.d.ts

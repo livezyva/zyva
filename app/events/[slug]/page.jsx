@@ -4,8 +4,9 @@ import Header from '../../../components/Header';
 import EventDetailClient from './EventDetailClient';
 
 export async function generateMetadata({ params }) {
+  const { slug } = await params;
   const db = getDb();
-  const e = await db.get('SELECT * FROM events WHERE slug = ?', [params.slug]);
+  const e = await db.get('SELECT * FROM events WHERE slug = ?', [slug]);
   if (!e) return {};
   return {
     title: `${e.title} — ZYVA`,
@@ -21,8 +22,9 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function EventDetailPage({ params }) {
+  const { slug } = await params;
   const db = getDb();
-  const event = await db.get('SELECT * FROM events WHERE slug = ?', [params.slug]);
+  const event = await db.get('SELECT * FROM events WHERE slug = ?', [slug]);
   if (!event) notFound();
   const venue = await db.get('SELECT * FROM venues WHERE id = ?', [event.venue_id]);
   const related = await db.all(

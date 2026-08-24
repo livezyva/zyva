@@ -25,6 +25,7 @@ const EDITABLE = new Set([
 
 export async function PATCH(req, { params }) {
   return safe(async () => {
+    const { id } = await params;
     const auth = await verifyRequest(req);
     const gate = requireAdmin(auth);
     if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
@@ -42,9 +43,9 @@ export async function PATCH(req, { params }) {
       }
     }
     if (sets.length === 0) return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 });
-    vals.push(params.id);
+    vals.push(id);
     await db.run(`UPDATE events SET ${sets.join(', ')} WHERE id = ?`, vals);
-    const row = await db.get(`SELECT * FROM events WHERE id = ?`, [params.id]);
+    const row = await db.get(`SELECT * FROM events WHERE id = ?`, [id]);
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (typeof row.is_featured === 'boolean') row.is_featured = row.is_featured ? 1 : 0;
     return NextResponse.json({ event: row });
@@ -53,12 +54,13 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   return safe(async () => {
+    const { id } = await params;
     const auth = await verifyRequest(req);
     const gate = requireAdmin(auth);
     if (gate) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
     const db = getDb();
-    await db.run(`DELETE FROM events WHERE id = ?`, [params.id]);
+    await db.run(`DELETE FROM events WHERE id = ?`, [id]);
     return NextResponse.json({ ok: true });
   });
 }
